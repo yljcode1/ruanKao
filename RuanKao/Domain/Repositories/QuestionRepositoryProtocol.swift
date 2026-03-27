@@ -1,6 +1,6 @@
 import Foundation
 
-protocol QuestionRepositoryProtocol {
+protocol QuestionRepositoryProtocol: Sendable {
     func seedIfNeeded() throws
     func loadPracticeQuestions(mode: PracticeMode, limit: Int, category: String?, year: Int?, keyword: String?) throws -> [Question]
     func fetchCategories() throws -> [String]

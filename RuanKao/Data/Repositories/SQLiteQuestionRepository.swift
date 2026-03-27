@@ -1,7 +1,7 @@
 import Foundation
 import SQLite3
 
-final class SQLiteQuestionRepository: QuestionRepositoryProtocol {
+final class SQLiteQuestionRepository: QuestionRepositoryProtocol, @unchecked Sendable {
     private struct QuestionRow {
         let id: Int64
         let year: Int
@@ -22,6 +22,21 @@ final class SQLiteQuestionRepository: QuestionRepositoryProtocol {
         let isMastered: Bool
     }
 
+    private struct QuestionQuery {
+        var fromClause = "FROM questions"
+        var clauses: [String] = []
+        var bindings: [SQLiteBindingValue] = []
+
+        var whereClause: String {
+            clauses.isEmpty ? "" : " WHERE " + clauses.joined(separator: " AND ")
+        }
+    }
+
+    private enum MetadataKey {
+        static let questionSeedManifest = "question_seed_manifest"
+        static let questionSearchManifest = "question_search_manifest"
+    }
+
     private let database: SQLiteDatabase
     private let decoder = JSONDecoder()
     private let encoder = JSONEncoder()
@@ -31,74 +46,66 @@ final class SQLiteQuestionRepository: QuestionRepositoryProtocol {
     }
 
     func seedIfNeeded() throws {
-        let questions = QuestionSeedLoader.load()
-        guard !questions.isEmpty else { return }
+        let currentManifest = QuestionSeedLoader.currentManifest()
+        let searchManifest = searchManifest(for: currentManifest)
+        let storedManifest = try metadataValue(for: MetadataKey.questionSeedManifest)
+        let storedSearchManifest = try metadataValue(for: MetadataKey.questionSearchManifest)
+        let searchIndexSupported = try hasSearchIndex()
+        let searchIndexRows = searchIndexSupported ? try searchIndexCount() : 0
 
-        for question in questions {
-            try upsert(question: question)
+        if storedManifest == currentManifest, try questionCount() > 0 {
+            if searchIndexSupported,
+               (storedSearchManifest != searchManifest || searchIndexRows == 0) {
+                try rebuildSearchIndex(searchManifest: searchManifest)
+            }
+            return
         }
+
+        let seedBundle = QuestionSeedLoader.loadSeedBundle()
+        guard !seedBundle.questions.isEmpty else { return }
+
+        try bulkUpsert(
+            questions: seedBundle.questions,
+            manifest: seedBundle.manifest,
+            searchManifest: searchManifest,
+            searchIndexSupported: searchIndexSupported
+        )
     }
 
     func loadPracticeQuestions(mode: PracticeMode, limit: Int, category: String?, year: Int?, keyword: String?) throws -> [Question] {
-        var sql = """
-        SELECT id, year, stage, type, category, stem, correct_answers, analysis, score, estimated_minutes
-        FROM questions
-        """
-
-        var bindings: [SQLiteBindingValue] = []
-        var clauses: [String] = []
-
-        if let category, !category.isEmpty {
-            clauses.append("category = ?")
-            bindings.append(.text(category))
-        }
-
-        if let year {
-            clauses.append("year = ?")
-            bindings.append(.int(Int64(year)))
-        }
-
-        if let keyword, !keyword.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-            let pattern = "%\(keyword.trimmingCharacters(in: .whitespacesAndNewlines))%"
-            clauses.append(
-                """
-                (
-                    questions.stem LIKE ?
-                    OR questions.category LIKE ?
-                    OR EXISTS (
-                        SELECT 1 FROM question_knowledge_points qkp
-                        WHERE qkp.question_id = questions.id
-                          AND qkp.knowledge_point LIKE ?
-                    )
-                )
-                """
-            )
-            bindings.append(.text(pattern))
-            bindings.append(.text(pattern))
-            bindings.append(.text(pattern))
-        }
-
-        if mode == .wrongOnly {
-            sql += " INNER JOIN wrong_questions ON wrong_questions.question_id = questions.id "
-            clauses.append("wrong_questions.is_mastered = 0")
-        }
-
-        if !clauses.isEmpty {
-            sql += " WHERE " + clauses.joined(separator: " AND ")
-        }
+        let query = try makeQuestionQuery(category: category, year: year, keyword: keyword, wrongOnly: mode == .wrongOnly)
+        let selectedRows: [QuestionRow]
 
         switch mode {
         case .sequential:
-            sql += " ORDER BY year DESC, id ASC "
+            let rows = try fetchQuestionRows(
+                sql: """
+                \(questionSelectSQL)
+                \(query.fromClause)
+                \(query.whereClause)
+                ORDER BY questions.year DESC, questions.id ASC
+                ;
+                """,
+                bindings: query.bindings
+            )
+            selectedRows = Array(deduplicatedQuestionRows(rows).prefix(limit))
         case .random, .mockExam, .wrongOnly:
-            sql += " ORDER BY RANDOM() "
+            var rows = deduplicatedQuestionRows(
+                try fetchQuestionRows(
+                sql: """
+                \(questionSelectSQL)
+                \(query.fromClause)
+                \(query.whereClause)
+                ORDER BY questions.year DESC, questions.id ASC;
+                """,
+                bindings: query.bindings
+            )
+            )
+            rows.shuffle()
+            selectedRows = Array(rows.prefix(limit))
         }
 
-        sql += " LIMIT ?;"
-        bindings.append(.int(Int64(limit)))
-
-        let rows = try fetchQuestionRows(sql: sql, bindings: bindings)
-        return try rows.map(makeQuestion)
+        return try makeQuestions(from: selectedRows)
     }
 
     func fetchCategories() throws -> [String] {
@@ -184,15 +191,17 @@ final class SQLiteQuestionRepository: QuestionRepositoryProtocol {
     }
 
     func fetchFavoriteQuestions() throws -> [Question] {
-        let sql = """
-        SELECT questions.id, questions.year, questions.stage, questions.type, questions.category, questions.stem, questions.correct_answers, questions.analysis, questions.score, questions.estimated_minutes
-        FROM questions
-        INNER JOIN favorite_questions ON favorite_questions.question_id = questions.id
-        ORDER BY favorite_questions.created_at DESC;
-        """
+        let rows = try fetchQuestionRows(
+            sql: """
+            \(questionSelectSQL)
+            FROM questions
+            INNER JOIN favorite_questions ON favorite_questions.question_id = questions.id
+            ORDER BY favorite_questions.created_at DESC;
+            """,
+            bindings: []
+        )
 
-        let rows = try fetchQuestionRows(sql: sql, bindings: [])
-        return try rows.map(makeQuestion)
+        return try makeQuestions(from: rows)
     }
 
     func fetchFavoriteQuestionIDs() throws -> Set<Int64> {
@@ -281,8 +290,10 @@ final class SQLiteQuestionRepository: QuestionRepositoryProtocol {
             return rows
         }
 
-        return try wrongRows.compactMap { row in
-            guard let question = try fetchQuestion(id: row.questionID) else {
+        let questionMap = try fetchQuestionMap(questionIDs: wrongRows.map(\.questionID))
+
+        return wrongRows.compactMap { row in
+            guard let question = questionMap[row.questionID] else {
                 return nil
             }
 
@@ -312,11 +323,61 @@ final class SQLiteQuestionRepository: QuestionRepositoryProtocol {
         }
     }
 
-    private func upsert(question: Question) throws {
-        let answersData = try encoder.encode(question.correctAnswers)
-        let answersText = String(decoding: answersData, as: UTF8.self)
+    private func makeQuestionQuery(category: String?, year: Int?, keyword: String?, wrongOnly: Bool) throws -> QuestionQuery {
+        var query = QuestionQuery()
 
-        try database.write { db in
+        if wrongOnly {
+            query.fromClause += " INNER JOIN wrong_questions ON wrong_questions.question_id = questions.id"
+            query.clauses.append("wrong_questions.is_mastered = 0")
+        }
+
+        if let category, !category.isEmpty {
+            query.clauses.append("questions.category = ?")
+            query.bindings.append(.text(category))
+        }
+
+        if let year {
+            query.clauses.append("questions.year = ?")
+            query.bindings.append(.int(Int64(year)))
+        }
+
+        if let keyword, !keyword.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            let normalizedKeyword = keyword.trimmingCharacters(in: .whitespacesAndNewlines)
+            if try hasSearchIndex(), let ftsQuery = makeFTSQuery(from: normalizedKeyword) {
+                query.fromClause += " INNER JOIN question_search ON question_search.question_id = questions.id"
+                query.clauses.append("question_search MATCH ?")
+                query.bindings.append(.text(ftsQuery))
+            } else {
+                let pattern = "%\(normalizedKeyword)%"
+                query.clauses.append(
+                    """
+                    (
+                        questions.stem LIKE ?
+                        OR questions.category LIKE ?
+                        OR EXISTS (
+                            SELECT 1 FROM question_knowledge_points qkp
+                            WHERE qkp.question_id = questions.id
+                              AND qkp.knowledge_point LIKE ?
+                        )
+                    )
+                    """
+                )
+                query.bindings.append(.text(pattern))
+                query.bindings.append(.text(pattern))
+                query.bindings.append(.text(pattern))
+            }
+        }
+
+        return query
+    }
+
+    private func bulkUpsert(
+        questions: [Question],
+        manifest: String,
+        searchManifest: String,
+        searchIndexSupported: Bool
+    ) throws {
+        try database.transaction { db in
             let questionStatement = try prepareStatement(
                 database: db,
                 sql: """
@@ -337,26 +398,6 @@ final class SQLiteQuestionRepository: QuestionRepositoryProtocol {
             )
             defer { sqlite3_finalize(questionStatement) }
 
-            try bind(
-                [
-                    .int(question.id),
-                    .int(Int64(question.year)),
-                    .text(question.stage),
-                    .text(question.type.rawValue),
-                    .text(question.category),
-                    .text(question.stem),
-                    .text(answersText),
-                    .text(question.analysis),
-                    .double(question.score),
-                    .int(Int64(question.estimatedMinutes))
-                ],
-                to: questionStatement
-            )
-
-            guard sqlite3_step(questionStatement) == SQLITE_DONE else {
-                throw SQLiteError.stepFailed(database.lastErrorMessage(db))
-            }
-
             let deleteOptionsStatement = try prepareStatement(
                 database: db,
                 sql: """
@@ -365,36 +406,15 @@ final class SQLiteQuestionRepository: QuestionRepositoryProtocol {
                 """
             )
             defer { sqlite3_finalize(deleteOptionsStatement) }
-            try bind([.int(question.id)], to: deleteOptionsStatement)
 
-            guard sqlite3_step(deleteOptionsStatement) == SQLITE_DONE else {
-                throw SQLiteError.stepFailed(database.lastErrorMessage(db))
-            }
-
-            for (index, option) in question.options.enumerated() {
-                let optionStatement = try prepareStatement(
-                    database: db,
-                    sql: """
-                    INSERT INTO question_options (question_id, label, content, display_order)
-                    VALUES (?, ?, ?, ?);
-                    """
-                )
-                defer { sqlite3_finalize(optionStatement) }
-
-                try bind(
-                    [
-                        .int(question.id),
-                        .text(option.label),
-                        .text(option.content),
-                        .int(Int64(index))
-                    ],
-                    to: optionStatement
-                )
-
-                guard sqlite3_step(optionStatement) == SQLITE_DONE else {
-                    throw SQLiteError.stepFailed(database.lastErrorMessage(db))
-                }
-            }
+            let optionStatement = try prepareStatement(
+                database: db,
+                sql: """
+                INSERT INTO question_options (question_id, label, content, display_order)
+                VALUES (?, ?, ?, ?);
+                """
+            )
+            defer { sqlite3_finalize(optionStatement) }
 
             let deleteKnowledgePointsStatement = try prepareStatement(
                 database: db,
@@ -404,41 +424,353 @@ final class SQLiteQuestionRepository: QuestionRepositoryProtocol {
                 """
             )
             defer { sqlite3_finalize(deleteKnowledgePointsStatement) }
-            try bind([.int(question.id)], to: deleteKnowledgePointsStatement)
 
-            guard sqlite3_step(deleteKnowledgePointsStatement) == SQLITE_DONE else {
-                throw SQLiteError.stepFailed(database.lastErrorMessage(db))
-            }
+            let knowledgePointStatement = try prepareStatement(
+                database: db,
+                sql: """
+                INSERT INTO question_knowledge_points (question_id, knowledge_point)
+                VALUES (?, ?);
+                """
+            )
+            defer { sqlite3_finalize(knowledgePointStatement) }
 
-            for knowledgePoint in question.knowledgePoints {
-                let knowledgeStatement = try prepareStatement(
+            let metadataStatement = try prepareStatement(
+                database: db,
+                sql: """
+                INSERT INTO app_metadata (key, value)
+                VALUES (?, ?)
+                ON CONFLICT(key) DO UPDATE SET value = excluded.value;
+                """
+            )
+            defer { sqlite3_finalize(metadataStatement) }
+
+            let deleteSearchStatement: OpaquePointer? =
+                searchIndexSupported
+                ? try prepareStatement(
                     database: db,
                     sql: """
-                    INSERT INTO question_knowledge_points (question_id, knowledge_point)
+                    DELETE FROM question_search;
+                    """
+                )
+                : nil
+            if let deleteSearchStatement {
+                defer { sqlite3_finalize(deleteSearchStatement) }
+                try executeUpdate(statement: deleteSearchStatement, bindings: [], database: db)
+            }
+
+            let searchStatement: OpaquePointer? =
+                searchIndexSupported
+                ? try prepareStatement(
+                    database: db,
+                    sql: """
+                    INSERT INTO question_search (question_id, searchable_text)
                     VALUES (?, ?);
                     """
                 )
-                defer { sqlite3_finalize(knowledgeStatement) }
-
-                try bind([.int(question.id), .text(knowledgePoint)], to: knowledgeStatement)
-
-                guard sqlite3_step(knowledgeStatement) == SQLITE_DONE else {
-                    throw SQLiteError.stepFailed(database.lastErrorMessage(db))
+                : nil
+            defer {
+                if let searchStatement {
+                    sqlite3_finalize(searchStatement)
                 }
+            }
+
+            for question in questions {
+                let answersText = try encodedAnswers(question.correctAnswers)
+
+                try executeUpdate(
+                    statement: questionStatement,
+                    bindings: [
+                        .int(question.id),
+                        .int(Int64(question.year)),
+                        .text(question.stage),
+                        .text(question.type.rawValue),
+                        .text(question.category),
+                        .text(question.stem),
+                        .text(answersText),
+                        .text(question.analysis),
+                        .double(question.score),
+                        .int(Int64(question.estimatedMinutes))
+                    ],
+                    database: db
+                )
+
+                try executeUpdate(
+                    statement: deleteOptionsStatement,
+                    bindings: [.int(question.id)],
+                    database: db
+                )
+
+                for (index, option) in question.options.enumerated() {
+                    try executeUpdate(
+                        statement: optionStatement,
+                        bindings: [
+                            .int(question.id),
+                            .text(option.label),
+                            .text(option.content),
+                            .int(Int64(index))
+                        ],
+                        database: db
+                    )
+                }
+
+                try executeUpdate(
+                    statement: deleteKnowledgePointsStatement,
+                    bindings: [.int(question.id)],
+                    database: db
+                )
+
+                for knowledgePoint in question.knowledgePoints {
+                    try executeUpdate(
+                        statement: knowledgePointStatement,
+                        bindings: [.int(question.id), .text(knowledgePoint)],
+                        database: db
+                    )
+                }
+
+                if let searchStatement {
+                    try executeUpdate(
+                        statement: searchStatement,
+                        bindings: [
+                            .int(question.id),
+                            .text(searchableText(for: question))
+                        ],
+                        database: db
+                    )
+                }
+            }
+
+            try executeUpdate(
+                statement: metadataStatement,
+                bindings: [.text(MetadataKey.questionSeedManifest), .text(manifest)],
+                database: db
+            )
+
+            if searchIndexSupported {
+                try executeUpdate(
+                    statement: metadataStatement,
+                    bindings: [.text(MetadataKey.questionSearchManifest), .text(searchManifest)],
+                    database: db
+                )
             }
         }
     }
 
-    private func fetchQuestion(id: Int64) throws -> Question? {
-        let sql = """
-        SELECT id, year, stage, type, category, stem, correct_answers, analysis, score, estimated_minutes
-        FROM questions
-        WHERE id = ?
-        LIMIT 1;
-        """
+    private func executeUpdate(statement: OpaquePointer?, bindings: [SQLiteBindingValue], database db: OpaquePointer) throws {
+        sqlite3_reset(statement)
+        sqlite3_clear_bindings(statement)
+        try bind(bindings, to: statement)
 
-        let rows = try fetchQuestionRows(sql: sql, bindings: [.int(id)])
-        return try rows.first.map(makeQuestion)
+        guard sqlite3_step(statement) == SQLITE_DONE else {
+            throw SQLiteError.stepFailed(database.lastErrorMessage(db))
+        }
+    }
+
+    private func questionCount() throws -> Int {
+        try database.read { db in
+            let statement = try prepareStatement(database: db, sql: "SELECT COUNT(*) FROM questions;")
+            defer { sqlite3_finalize(statement) }
+
+            guard sqlite3_step(statement) == SQLITE_ROW else {
+                return 0
+            }
+
+            return Int(sqlite3_column_int(statement, 0))
+        }
+    }
+
+    private func searchIndexCount() throws -> Int {
+        guard try hasSearchIndex() else {
+            return 0
+        }
+
+        return try database.read { db in
+            let statement = try prepareStatement(database: db, sql: "SELECT COUNT(*) FROM question_search;")
+            defer { sqlite3_finalize(statement) }
+
+            guard sqlite3_step(statement) == SQLITE_ROW else {
+                return 0
+            }
+
+            return Int(sqlite3_column_int(statement, 0))
+        }
+    }
+
+    private func metadataValue(for key: String) throws -> String? {
+        try database.read { db in
+            let statement = try prepareStatement(
+                database: db,
+                sql: """
+                SELECT value
+                FROM app_metadata
+                WHERE key = ?
+                LIMIT 1;
+                """
+            )
+            defer { sqlite3_finalize(statement) }
+            try bind([.text(key)], to: statement)
+
+            guard sqlite3_step(statement) == SQLITE_ROW else {
+                return nil
+            }
+
+            return columnText(statement, index: 0)
+        }
+    }
+
+    private func hasSearchIndex() throws -> Bool {
+        try database.read { db in
+            let statement = try prepareStatement(
+                database: db,
+                sql: """
+                SELECT 1
+                FROM sqlite_master
+                WHERE name = 'question_search'
+                LIMIT 1;
+                """
+            )
+            defer { sqlite3_finalize(statement) }
+
+            return sqlite3_step(statement) == SQLITE_ROW
+        }
+    }
+
+    private func rebuildSearchIndex(searchManifest: String) throws {
+        guard try hasSearchIndex() else { return }
+
+        let rows = try database.read { db -> [(id: Int64, text: String)] in
+            let statement = try prepareStatement(
+                database: db,
+                sql: """
+                SELECT
+                    questions.id,
+                    questions.category,
+                    questions.stage,
+                    questions.stem,
+                    COALESCE(GROUP_CONCAT(question_knowledge_points.knowledge_point, ' '), '') AS knowledge_points
+                FROM questions
+                LEFT JOIN question_knowledge_points ON question_knowledge_points.question_id = questions.id
+                GROUP BY questions.id, questions.category, questions.stage, questions.stem
+                ORDER BY questions.id ASC;
+                """
+            )
+            defer { sqlite3_finalize(statement) }
+
+            var values: [(id: Int64, text: String)] = []
+            while sqlite3_step(statement) == SQLITE_ROW {
+                let questionID = sqlite3_column_int64(statement, 0)
+                let text = [
+                    columnText(statement, index: 1),
+                    columnText(statement, index: 2),
+                    columnText(statement, index: 3),
+                    columnText(statement, index: 4)
+                ]
+                .filter { !$0.isEmpty }
+                .joined(separator: " ")
+
+                values.append((id: questionID, text: text))
+            }
+            return values
+        }
+
+        try database.transaction { db in
+            let deleteStatement = try prepareStatement(database: db, sql: "DELETE FROM question_search;")
+            defer { sqlite3_finalize(deleteStatement) }
+            try executeUpdate(statement: deleteStatement, bindings: [], database: db)
+
+            let insertStatement = try prepareStatement(
+                database: db,
+                sql: """
+                INSERT INTO question_search (question_id, searchable_text)
+                VALUES (?, ?);
+                """
+            )
+            defer { sqlite3_finalize(insertStatement) }
+
+            let metadataStatement = try prepareStatement(
+                database: db,
+                sql: """
+                INSERT INTO app_metadata (key, value)
+                VALUES (?, ?)
+                ON CONFLICT(key) DO UPDATE SET value = excluded.value;
+                """
+            )
+            defer { sqlite3_finalize(metadataStatement) }
+
+            for row in rows {
+                try executeUpdate(
+                    statement: insertStatement,
+                    bindings: [.int(row.id), .text(row.text)],
+                    database: db
+                )
+            }
+
+            try executeUpdate(
+                statement: metadataStatement,
+                bindings: [.text(MetadataKey.questionSearchManifest), .text(searchManifest)],
+                database: db
+            )
+        }
+    }
+
+    private func fetchQuestion(id: Int64) throws -> Question? {
+        try fetchQuestionMap(questionIDs: [id])[id]
+    }
+
+    private func deduplicatedQuestionRows(_ rows: [QuestionRow]) -> [QuestionRow] {
+        var seenKeys = Set<String>()
+        var uniqueRows: [QuestionRow] = []
+        uniqueRows.reserveCapacity(rows.count)
+
+        for row in rows {
+            let key = dedupeKey(for: row)
+            if seenKeys.insert(key).inserted {
+                uniqueRows.append(row)
+            }
+        }
+
+        return uniqueRows
+    }
+
+    private func dedupeKey(for row: QuestionRow) -> String {
+        let normalizedStem = normalizedQuestionStem(row.stem)
+        guard !normalizedStem.isEmpty else {
+            return "\(row.type.rawValue)|\(row.id)"
+        }
+        return "\(row.type.rawValue)|\(normalizedStem)"
+    }
+
+    private func normalizedQuestionStem(_ stem: String) -> String {
+        let folded = stem.folding(
+            options: [.caseInsensitive, .diacriticInsensitive, .widthInsensitive],
+            locale: .current
+        )
+        let scalars = folded.unicodeScalars.filter { CharacterSet.alphanumerics.contains($0) }
+        return String(String.UnicodeScalarView(scalars))
+    }
+
+    private func fetchQuestionMap(questionIDs: [Int64]) throws -> [Int64: Question] {
+        guard !questionIDs.isEmpty else { return [:] }
+
+        let rows = try fetchQuestionRows(for: questionIDs)
+        let questions = try makeQuestions(from: rows)
+        return Dictionary(uniqueKeysWithValues: questions.map { ($0.id, $0) })
+    }
+
+    private func fetchQuestionRows(for questionIDs: [Int64]) throws -> [QuestionRow] {
+        let uniqueIDs = Array(Set(questionIDs))
+        guard !uniqueIDs.isEmpty else { return [] }
+
+        let bindings = uniqueIDs.map(SQLiteBindingValue.int)
+        let placeholders = Array(repeating: "?", count: uniqueIDs.count).joined(separator: ", ")
+
+        return try fetchQuestionRows(
+            sql: """
+            \(questionSelectSQL)
+            FROM questions
+            WHERE questions.id IN (\(placeholders));
+            """,
+            bindings: bindings
+        )
     }
 
     private func fetchQuestionRows(sql: String, bindings: [SQLiteBindingValue]) throws -> [QuestionRow] {
@@ -475,73 +807,153 @@ final class SQLiteQuestionRepository: QuestionRepositoryProtocol {
         }
     }
 
-    private func fetchOptions(questionID: Int64) throws -> [QuestionOption] {
-        try database.read { db in
+    private func fetchOptions(questionIDs: [Int64]) throws -> [Int64: [QuestionOption]] {
+        let uniqueIDs = Array(Set(questionIDs))
+        guard !uniqueIDs.isEmpty else { return [:] }
+
+        let placeholders = Array(repeating: "?", count: uniqueIDs.count).joined(separator: ", ")
+        let bindings = uniqueIDs.map(SQLiteBindingValue.int)
+
+        return try database.read { db in
             let statement = try prepareStatement(
                 database: db,
                 sql: """
-                SELECT label, content
+                SELECT question_id, label, content
                 FROM question_options
-                WHERE question_id = ?
-                ORDER BY display_order ASC;
+                WHERE question_id IN (\(placeholders))
+                ORDER BY question_id ASC, display_order ASC;
                 """
             )
             defer { sqlite3_finalize(statement) }
-            try bind([.int(questionID)], to: statement)
+            try bind(bindings, to: statement)
 
-            var options: [QuestionOption] = []
+            var mapping: [Int64: [QuestionOption]] = [:]
 
             while sqlite3_step(statement) == SQLITE_ROW {
-                options.append(
+                let questionID = sqlite3_column_int64(statement, 0)
+                mapping[questionID, default: []].append(
                     QuestionOption(
-                        label: columnText(statement, index: 0),
-                        content: columnText(statement, index: 1)
+                        label: columnText(statement, index: 1),
+                        content: columnText(statement, index: 2)
                     )
                 )
             }
 
-            return options
+            return mapping
         }
     }
 
-    private func fetchKnowledgePoints(questionID: Int64) throws -> [String] {
-        try database.read { db in
+    private func fetchKnowledgePoints(questionIDs: [Int64]) throws -> [Int64: [String]] {
+        let uniqueIDs = Array(Set(questionIDs))
+        guard !uniqueIDs.isEmpty else { return [:] }
+
+        let placeholders = Array(repeating: "?", count: uniqueIDs.count).joined(separator: ", ")
+        let bindings = uniqueIDs.map(SQLiteBindingValue.int)
+
+        return try database.read { db in
             let statement = try prepareStatement(
                 database: db,
                 sql: """
-                SELECT knowledge_point
+                SELECT question_id, knowledge_point
                 FROM question_knowledge_points
-                WHERE question_id = ?
-                ORDER BY knowledge_point ASC;
+                WHERE question_id IN (\(placeholders))
+                ORDER BY question_id ASC, knowledge_point ASC;
                 """
             )
             defer { sqlite3_finalize(statement) }
-            try bind([.int(questionID)], to: statement)
+            try bind(bindings, to: statement)
 
-            var knowledgePoints: [String] = []
+            var mapping: [Int64: [String]] = [:]
 
             while sqlite3_step(statement) == SQLITE_ROW {
-                knowledgePoints.append(columnText(statement, index: 0))
+                let questionID = sqlite3_column_int64(statement, 0)
+                mapping[questionID, default: []].append(columnText(statement, index: 1))
             }
 
-            return knowledgePoints
+            return mapping
         }
     }
 
-    private func makeQuestion(row: QuestionRow) throws -> Question {
-        Question(
-            id: row.id,
-            year: row.year,
-            stage: row.stage,
-            type: row.type,
-            category: row.category,
-            knowledgePoints: try fetchKnowledgePoints(questionID: row.id),
-            stem: row.stem,
-            options: try fetchOptions(questionID: row.id),
-            correctAnswers: row.correctAnswers,
-            analysis: row.analysis,
-            score: row.score,
-            estimatedMinutes: row.estimatedMinutes
-        )
+    private func makeQuestions(from rows: [QuestionRow]) throws -> [Question] {
+        guard !rows.isEmpty else { return [] }
+
+        let questionIDs = rows.map(\.id)
+        let optionsByQuestionID = try fetchOptions(questionIDs: questionIDs)
+        let knowledgePointsByQuestionID = try fetchKnowledgePoints(questionIDs: questionIDs)
+
+        return rows.map { row in
+            Question(
+                id: row.id,
+                year: row.year,
+                stage: row.stage,
+                type: row.type,
+                category: row.category,
+                knowledgePoints: knowledgePointsByQuestionID[row.id] ?? [],
+                stem: row.stem,
+                options: optionsByQuestionID[row.id] ?? [],
+                correctAnswers: row.correctAnswers,
+                analysis: row.analysis,
+                score: row.score,
+                estimatedMinutes: row.estimatedMinutes
+            )
+        }
     }
+
+    private func encodedAnswers(_ answers: [String]) throws -> String {
+        let answersData = try encoder.encode(answers)
+        return String(decoding: answersData, as: UTF8.self)
+    }
+
+    private func searchableText(for question: Question) -> String {
+        [
+            question.category,
+            question.stage,
+            question.stem,
+            question.knowledgePoints.joined(separator: " ")
+        ]
+        .filter { !$0.isEmpty }
+        .joined(separator: " ")
+    }
+
+    private func searchManifest(for questionManifest: String) -> String {
+        "question_search_v1|\(questionManifest)"
+    }
+
+    private func makeFTSQuery(from keyword: String) -> String? {
+        let normalizedTokens = keyword
+            .split(whereSeparator: \.isWhitespace)
+            .map { token in
+                token
+                    .replacingOccurrences(of: "\"", with: "")
+                    .replacingOccurrences(of: "'", with: "")
+                    .trimmingCharacters(in: .punctuationCharacters)
+            }
+            .filter { !$0.isEmpty }
+
+        guard !normalizedTokens.isEmpty else {
+            return nil
+        }
+
+        guard normalizedTokens.allSatisfy({ $0.count >= 3 }) else {
+            return nil
+        }
+
+        return normalizedTokens
+            .map { "\"\($0)\"" }
+            .joined(separator: " AND ")
+    }
+
+    private let questionSelectSQL = """
+    SELECT
+        questions.id,
+        questions.year,
+        questions.stage,
+        questions.type,
+        questions.category,
+        questions.stem,
+        questions.correct_answers,
+        questions.analysis,
+        questions.score,
+        questions.estimated_minutes
+    """
 }
