@@ -94,9 +94,25 @@ final class RemoteAIStudyService: AIStudyServiceProtocol {
         let model: String
         let instructions: String?
         let input: String
-        let store: Bool
+        let store: Bool?
         let reasoning: Reasoning?
         let text: TextConfiguration?
+    }
+
+    private struct ResponsesAPIMessageRequest: Encodable {
+        struct Message: Encodable {
+            let role: String
+            let content: [Content]
+        }
+
+        struct Content: Encodable {
+            let type = "input_text"
+            let text: String
+        }
+
+        let model: String
+        let input: [Message]
+        let store: Bool?
     }
 
     private struct InsightSchema: Encodable {
@@ -259,7 +275,7 @@ final class RemoteAIStudyService: AIStudyServiceProtocol {
         let resolvedModel = try resolvedModel(for: model, endpoint: endpoint)
         let fallbackSource = sourceLabel(for: endpoint, model: resolvedModel)
 
-        let requestVariants = responsesRequestVariants(
+        let requestVariants = try responsesRequestVariants(
             model: resolvedModel,
             question: question,
             style: style
@@ -271,7 +287,7 @@ final class RemoteAIStudyService: AIStudyServiceProtocol {
                 return try await executeResponsesRequest(
                     endpoint: resolvedEndpoint,
                     token: token,
-                    requestBody: requestBody,
+                    requestBodyData: requestBody,
                     fallbackSource: fallbackSource
                 )
             } catch {
@@ -289,7 +305,7 @@ final class RemoteAIStudyService: AIStudyServiceProtocol {
     private func executeResponsesRequest(
         endpoint: URL,
         token: String?,
-        requestBody: ResponsesAPIRequest,
+        requestBodyData: Data,
         fallbackSource: String
     ) async throws -> AIStudyInsight {
         var request = URLRequest(url: endpoint)
@@ -297,7 +313,7 @@ final class RemoteAIStudyService: AIStudyServiceProtocol {
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.setValue("application/json", forHTTPHeaderField: "Accept")
         applyOpenAICompatibleAuthHeaders(to: &request, token: token)
-        request.httpBody = try JSONEncoder().encode(requestBody)
+        request.httpBody = requestBodyData
 
         let (data, response) = try await performRequest(request)
         try validateHTTPResponse(response, data: data)
@@ -321,12 +337,13 @@ final class RemoteAIStudyService: AIStudyServiceProtocol {
         model: String,
         question: Question,
         style: AIInsightStyle
-    ) -> [ResponsesAPIRequest] {
+    ) throws -> [Data] {
         let standardInput = userPrompt(for: question, style: style)
         let combinedInput = combinedResponsesPrompt(for: question, style: style)
+        let encoder = JSONEncoder()
 
-        return [
-            ResponsesAPIRequest(
+        return try [
+            encoder.encode(ResponsesAPIRequest(
                 model: model,
                 instructions: systemPrompt,
                 input: standardInput,
@@ -340,23 +357,38 @@ final class RemoteAIStudyService: AIStudyServiceProtocol {
                         strict: true
                     )
                 )
-            ),
-            ResponsesAPIRequest(
+            )),
+            encoder.encode(ResponsesAPIRequest(
                 model: model,
                 instructions: systemPrompt,
                 input: standardInput,
-                store: false,
+                store: nil,
                 reasoning: nil,
                 text: nil
-            ),
-            ResponsesAPIRequest(
+            )),
+            encoder.encode(ResponsesAPIRequest(
                 model: model,
                 instructions: nil,
                 input: combinedInput,
-                store: false,
+                store: nil,
                 reasoning: nil,
                 text: nil
-            )
+            )),
+            encoder.encode(ResponsesAPIMessageRequest(
+                model: model,
+                input: [
+                    .init(role: "system", content: [.init(text: systemPrompt)]),
+                    .init(role: "user", content: [.init(text: standardInput)])
+                ],
+                store: nil
+            )),
+            encoder.encode(ResponsesAPIMessageRequest(
+                model: model,
+                input: [
+                    .init(role: "user", content: [.init(text: combinedInput)])
+                ],
+                store: nil
+            ))
         ]
     }
 
