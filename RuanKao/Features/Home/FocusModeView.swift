@@ -419,6 +419,17 @@ struct FocusPracticeSessionView: View {
                 questionRepository: container.questionRepository,
                 progressRepository: container.progressRepository,
                 aiStudyService: container.aiStudyService,
+                recordRecentSearch: { keyword in
+                    container.recentActivityStore.recordSearch(keyword)
+                },
+                recordRecentPractice: { mode, category, year, keyword in
+                    container.recentActivityStore.recordPractice(
+                        mode: mode,
+                        category: category,
+                        year: year,
+                        keyword: keyword
+                    )
+                },
                 preferredMode: .random
             )
         )

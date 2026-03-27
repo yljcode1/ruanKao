@@ -29,6 +29,8 @@ final class PracticeViewModel: ObservableObject {
     private let questionRepository: QuestionRepositoryProtocol
     private let progressRepository: ProgressRepositoryProtocol
     private let aiStudyService: AIStudyServiceProtocol
+    private let recordRecentSearch: (String?) -> Void
+    private let recordRecentPractice: (PracticeMode, String?, Int?, String?) -> Void
     private var questionStartDate = Date()
     private var examTimer: Timer?
 
@@ -36,6 +38,8 @@ final class PracticeViewModel: ObservableObject {
         questionRepository: QuestionRepositoryProtocol,
         progressRepository: ProgressRepositoryProtocol,
         aiStudyService: AIStudyServiceProtocol,
+        recordRecentSearch: @escaping (String?) -> Void,
+        recordRecentPractice: @escaping (PracticeMode, String?, Int?, String?) -> Void,
         preferredMode: PracticeMode,
         initialCategory: String? = nil,
         initialYear: Int? = nil,
@@ -44,6 +48,8 @@ final class PracticeViewModel: ObservableObject {
         self.questionRepository = questionRepository
         self.progressRepository = progressRepository
         self.aiStudyService = aiStudyService
+        self.recordRecentSearch = recordRecentSearch
+        self.recordRecentPractice = recordRecentPractice
         self.selectedMode = preferredMode
         self.selectedCategory = initialCategory
         self.selectedYear = initialYear
@@ -105,12 +111,13 @@ final class PracticeViewModel: ObservableObject {
         errorMessage = nil
 
         do {
+            let currentSearchText = normalizedSearchText
             questions = try questionRepository.loadPracticeQuestions(
                 mode: selectedMode,
                 limit: selectedQuestionLimit,
                 category: selectedCategory,
                 year: selectedYear,
-                keyword: normalizedSearchText
+                keyword: currentSearchText
             )
 
             currentIndex = 0
@@ -118,6 +125,10 @@ final class PracticeViewModel: ObservableObject {
             correctCount = 0
             finished = questions.isEmpty
             resetQuestionState()
+
+            if !questions.isEmpty {
+                recordRecentPractice(selectedMode, selectedCategory, selectedYear, currentSearchText)
+            }
 
             if selectedMode == .mockExam {
                 remainingSeconds = 90 * 60
@@ -150,6 +161,7 @@ final class PracticeViewModel: ObservableObject {
     }
 
     func applySearch() {
+        recordRecentSearch(normalizedSearchText)
         loadQuestions()
     }
 

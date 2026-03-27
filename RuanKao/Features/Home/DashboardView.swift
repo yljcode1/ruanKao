@@ -4,6 +4,7 @@ import SwiftUI
 struct DashboardView: View {
     @StateObject private var viewModel: DashboardViewModel
     @ObservedObject private var focusSessionStore: FocusSessionStore
+    @ObservedObject private var recentActivityStore: RecentActivityStore
     @State private var isSettingsPresented = false
     private let container: AppContainer
     private let gridColumns = [
@@ -14,6 +15,7 @@ struct DashboardView: View {
     init(container: AppContainer) {
         self.container = container
         _focusSessionStore = ObservedObject(wrappedValue: container.focusSessionStore)
+        _recentActivityStore = ObservedObject(wrappedValue: container.recentActivityStore)
         _viewModel = StateObject(
             wrappedValue: DashboardViewModel(
                 analyticsRepository: container.analyticsRepository,
@@ -27,6 +29,9 @@ struct DashboardView: View {
             VStack(alignment: .leading, spacing: AppTheme.Metrics.listSectionSpacing) {
                 overviewSection
                 practiceEntrySection
+                if !recentActivityStore.recentSessions.isEmpty {
+                    recentPracticeSection
+                }
                 focusEntrySection
                 openClawSection
                 if !viewModel.topicSummaries.isEmpty {
@@ -203,6 +208,61 @@ struct DashboardView: View {
                 }
             }
             .buttonStyle(.plain)
+        }
+    }
+
+    private var recentPracticeSection: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            SectionHeader("最近练习", subtitle: "把上一次的筛选条件和模式一键接上")
+
+            ForEach(Array(recentActivityStore.recentSessions.prefix(4))) { entry in
+                NavigationLink {
+                    PracticeView(
+                        container: container,
+                        preferredMode: entry.mode,
+                        initialCategory: entry.category,
+                        initialYear: entry.year,
+                        initialSearchText: entry.keyword
+                    )
+                } label: {
+                    PrimaryCard(style: .subtle) {
+                        HStack(alignment: .top, spacing: 14) {
+                            Image(systemName: entry.mode.icon)
+                                .font(.title3.weight(.semibold))
+                                .foregroundStyle(AppTheme.Colors.primary)
+                                .frame(width: 42, height: 42)
+                                .background(AppTheme.Colors.muted)
+                                .clipShape(RoundedRectangle(cornerRadius: AppTheme.Metrics.compactRadius, style: .continuous))
+
+                            VStack(alignment: .leading, spacing: 8) {
+                                HStack {
+                                    Text(entry.title)
+                                        .font(.headline.weight(.semibold))
+                                        .foregroundStyle(AppTheme.Colors.textPrimary)
+
+                                    Spacer(minLength: 12)
+
+                                    Text(entry.updatedAt, style: .relative)
+                                        .font(.caption.weight(.semibold))
+                                        .foregroundStyle(AppTheme.Colors.textSecondary)
+                                }
+
+                                Text(entry.subtitle)
+                                    .font(.footnote)
+                                    .foregroundStyle(AppTheme.Colors.textSecondary)
+                                    .fixedSize(horizontal: false, vertical: true)
+
+                                PillTag(title: "继续练", icon: "arrow.clockwise", tint: AppTheme.Colors.secondary)
+                            }
+
+                            Image(systemName: "chevron.right")
+                                .font(.footnote.weight(.semibold))
+                                .foregroundStyle(AppTheme.Colors.textTertiary)
+                        }
+                    }
+                }
+                .buttonStyle(.plain)
+            }
         }
     }
 

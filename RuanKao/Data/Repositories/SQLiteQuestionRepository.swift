@@ -78,20 +78,20 @@ final class SQLiteQuestionRepository: QuestionRepositoryProtocol, @unchecked Sen
 
         switch mode {
         case .sequential:
-            var bindings = query.bindings
-            bindings.append(.int(Int64(limit)))
-            selectedRows = try fetchQuestionRows(
+            let rows = try fetchQuestionRows(
                 sql: """
                 \(questionSelectSQL)
                 \(query.fromClause)
                 \(query.whereClause)
                 ORDER BY questions.year DESC, questions.id ASC
-                LIMIT ?;
+                ;
                 """,
-                bindings: bindings
+                bindings: query.bindings
             )
+            selectedRows = Array(deduplicatedQuestionRows(rows).prefix(limit))
         case .random, .mockExam, .wrongOnly:
-            var rows = try fetchQuestionRows(
+            var rows = deduplicatedQuestionRows(
+                try fetchQuestionRows(
                 sql: """
                 \(questionSelectSQL)
                 \(query.fromClause)
@@ -99,6 +99,7 @@ final class SQLiteQuestionRepository: QuestionRepositoryProtocol, @unchecked Sen
                 ORDER BY questions.year DESC, questions.id ASC;
                 """,
                 bindings: query.bindings
+            )
             )
             rows.shuffle()
             selectedRows = Array(rows.prefix(limit))
@@ -713,6 +714,38 @@ final class SQLiteQuestionRepository: QuestionRepositoryProtocol, @unchecked Sen
 
     private func fetchQuestion(id: Int64) throws -> Question? {
         try fetchQuestionMap(questionIDs: [id])[id]
+    }
+
+    private func deduplicatedQuestionRows(_ rows: [QuestionRow]) -> [QuestionRow] {
+        var seenKeys = Set<String>()
+        var uniqueRows: [QuestionRow] = []
+        uniqueRows.reserveCapacity(rows.count)
+
+        for row in rows {
+            let key = dedupeKey(for: row)
+            if seenKeys.insert(key).inserted {
+                uniqueRows.append(row)
+            }
+        }
+
+        return uniqueRows
+    }
+
+    private func dedupeKey(for row: QuestionRow) -> String {
+        let normalizedStem = normalizedQuestionStem(row.stem)
+        guard !normalizedStem.isEmpty else {
+            return "\(row.type.rawValue)|\(row.id)"
+        }
+        return "\(row.type.rawValue)|\(normalizedStem)"
+    }
+
+    private func normalizedQuestionStem(_ stem: String) -> String {
+        let folded = stem.folding(
+            options: [.caseInsensitive, .diacriticInsensitive, .widthInsensitive],
+            locale: .current
+        )
+        let scalars = folded.unicodeScalars.filter { CharacterSet.alphanumerics.contains($0) }
+        return String(String.UnicodeScalarView(scalars))
     }
 
     private func fetchQuestionMap(questionIDs: [Int64]) throws -> [Int64: Question] {
