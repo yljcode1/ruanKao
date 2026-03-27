@@ -7,7 +7,7 @@ settings:
   base:
     SWIFT_VERSION: 5.10
     PRODUCT_BUNDLE_IDENTIFIER: com.codexdemo.ruankao
-    DEVELOPMENT_TEAM: 4K946ALQ47
+    DEVELOPMENT_TEAM: 53HX95C65Q
 targets:
   RuanKao:
     type: application
@@ -19,6 +19,8 @@ targets:
     info:
       path: RuanKao/Support/Info.plist
       properties:
+        CFBundleShortVersionString: "1.1"
+        CFBundleVersion: "2"
         UILaunchStoryboardName: LaunchScreen
         UIApplicationSupportsIndirectInputEvents: true
         LSRequiresIPhoneOS: true

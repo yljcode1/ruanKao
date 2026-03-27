@@ -34,8 +34,7 @@ final class SQLiteDatabase {
     private let handle: OpaquePointer
     private let queue = DispatchQueue(label: "com.codexdemo.ruankao.database")
 
-    init(databaseName: String) throws {
-        let fileManager = FileManager.default
+    static func databaseDirectoryURL(fileManager: FileManager = .default) throws -> URL {
         let baseURL = try fileManager.url(
             for: .applicationSupportDirectory,
             in: .userDomainMask,
@@ -45,8 +44,16 @@ final class SQLiteDatabase {
 
         let appFolder = baseURL.appendingPathComponent("RuanKao", isDirectory: true)
         try fileManager.createDirectory(at: appFolder, withIntermediateDirectories: true, attributes: nil)
+        return appFolder
+    }
 
-        let databaseURL = appFolder.appendingPathComponent(databaseName)
+    static func databaseURL(databaseName: String, fileManager: FileManager = .default) throws -> URL {
+        try databaseDirectoryURL(fileManager: fileManager).appendingPathComponent(databaseName)
+    }
+
+    init(databaseName: String) throws {
+        let fileManager = FileManager.default
+        let databaseURL = try Self.databaseURL(databaseName: databaseName, fileManager: fileManager)
         var pointer: OpaquePointer?
 
         guard sqlite3_open(databaseURL.path, &pointer) == SQLITE_OK, let pointer else {

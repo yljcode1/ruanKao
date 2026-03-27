@@ -18,7 +18,7 @@ struct PillTag: View {
         .foregroundStyle(filled ? Color.white : tint)
         .padding(.horizontal, 12)
         .padding(.vertical, 7)
-        .background(filled ? tint : Color.white)
+        .background(filled ? tint : AppTheme.Colors.card)
         .overlay {
             RoundedRectangle(cornerRadius: AppTheme.Metrics.chipRadius, style: .continuous)
                 .stroke(filled ? tint : AppTheme.Colors.stroke)

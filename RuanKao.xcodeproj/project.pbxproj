@@ -13,6 +13,7 @@
 		0B87D1FF9F12F1D8ED1B8527 /* Question.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8AB1D0C14A995E96C90105EA /* Question.swift */; };
 		1017A2DAFFD865E289240032 /* RuanKaoApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 285CDBF0194CE2E678840AEC /* RuanKaoApp.swift */; };
 		126B5F8D1217B929B8CDBF4C /* AppTheme.swift in Sources */ = {isa = PBXBuildFile; fileRef = 57180B54712762AACEC11CF8 /* AppTheme.swift */; };
+		1461E0F225F639FE73B61A0E /* ruankao_seed.sqlite in Resources */ = {isa = PBXBuildFile; fileRef = 3578ED01D427FB0DD5286EE7 /* ruankao_seed.sqlite */; };
 		19D99F44D779C9D50A396E3C /* questions_starter_pack.json in Resources */ = {isa = PBXBuildFile; fileRef = 5F034168667EDEA4CB812459 /* questions_starter_pack.json */; };
 		1DD90D92D095BD89AA61C0F5 /* AppConfiguration.swift in Sources */ = {isa = PBXBuildFile; fileRef = 829537799BA4A903817B5256 /* AppConfiguration.swift */; };
 		28A0251B22CE14776D60AC0F /* AnalyticsRepositoryProtocol.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5D47FC962A48F8C0DA544F6E /* AnalyticsRepositoryProtocol.swift */; };
@@ -30,6 +31,7 @@
 		55ED82E925646CD87B7771A4 /* KeychainStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = C1B883F4393656D11EF65EA9 /* KeychainStore.swift */; };
 		5A71A502AEF11297525DF2B2 /* FavoritesViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = AE6BB61CA0DB43E35422213C /* FavoritesViewModel.swift */; };
 		6A1144FAFE8167E214CAC680 /* questions_massive_pack.json in Resources */ = {isa = PBXBuildFile; fileRef = 3280BA89D6AE85C540FDCC1D /* questions_massive_pack.json */; };
+		6ADC22B856E9CDA0690AB8D6 /* question_seed_manifest.txt in Resources */ = {isa = PBXBuildFile; fileRef = 13357427BF0EC22B3689C017 /* question_seed_manifest.txt */; };
 		706D5ED19F8D0B0062355554 /* questions_cheko_style_pack.json in Resources */ = {isa = PBXBuildFile; fileRef = 6A60C72561B8E58AFEBDE034 /* questions_cheko_style_pack.json */; };
 		7112FD3F2BE59A833AD6DADF /* HybridAIStudyService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5DB4C6F998566051BE1FF3EB /* HybridAIStudyService.swift */; };
 		7CD063570D7A16BCCED4FADD /* AppearanceMode.swift in Sources */ = {isa = PBXBuildFile; fileRef = 04E84246EC381D3E1991532D /* AppearanceMode.swift */; };
@@ -72,11 +74,13 @@
 		05BFCCDC97A4CC747116AB38 /* questions_pastpaper_derived_pack.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = questions_pastpaper_derived_pack.json; sourceTree = "<group>"; };
 		0D3506ED46FEF7238EFCB54B /* QuestionRepositoryProtocol.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuestionRepositoryProtocol.swift; sourceTree = "<group>"; };
 		0E4B3B654621ADC66F15A9D8 /* questions_xisai_subjective_pack.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = questions_xisai_subjective_pack.json; sourceTree = "<group>"; };
+		13357427BF0EC22B3689C017 /* question_seed_manifest.txt */ = {isa = PBXFileReference; lastKnownFileType = text; path = question_seed_manifest.txt; sourceTree = "<group>"; };
 		1A1306D5ECD0A68684D29258 /* questions_seed.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = questions_seed.json; sourceTree = "<group>"; };
 		20EA8D16EC974845CCD7CE9A /* questions_cheko_extension_pack.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = questions_cheko_extension_pack.json; sourceTree = "<group>"; };
 		2317C7E65CE46C05EC3537EC /* PrimaryCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PrimaryCard.swift; sourceTree = "<group>"; };
 		285CDBF0194CE2E678840AEC /* RuanKaoApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RuanKaoApp.swift; sourceTree = "<group>"; };
 		3280BA89D6AE85C540FDCC1D /* questions_massive_pack.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = questions_massive_pack.json; sourceTree = "<group>"; };
+		3578ED01D427FB0DD5286EE7 /* ruankao_seed.sqlite */ = {isa = PBXFileReference; lastKnownFileType = file; path = ruankao_seed.sqlite; sourceTree = "<group>"; };
 		3A4CD64FFD0D75DD6B70C635 /* SectionHeader.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SectionHeader.swift; sourceTree = "<group>"; };
 		3A52D273295C4D637910BC06 /* DashboardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DashboardView.swift; sourceTree = "<group>"; };
 		425D3263C10F33A1900A2938 /* QuestionSeedLoader.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuestionSeedLoader.swift; sourceTree = "<group>"; };
@@ -123,7 +127,7 @@
 		F5D35F88BFE5C0CDEB799C55 /* questions_xisai_extended_pack.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = questions_xisai_extended_pack.json; sourceTree = "<group>"; };
 		FB1AE96D1D73FC6D84E8BED5 /* OpenClawPortalView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OpenClawPortalView.swift; sourceTree = "<group>"; };
 		FDFF3B11CC8F8236078F4ED5 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
-		FED1B5BEA3CFD8FFA69AE6D4 /* RuanKao.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = RuanKao.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		FED1B5BEA3CFD8FFA69AE6D4 /* RuanKao.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = RuanKao.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		FF12560850ED32E97529472C /* questions_xisai_comprehensive_pack.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = questions_xisai_comprehensive_pack.json; sourceTree = "<group>"; };
 		FF9957284A0F1911C748DABE /* AIStudyServiceProtocol.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AIStudyServiceProtocol.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
@@ -361,6 +365,7 @@
 		D0ADB31F95989FC7EE08B8FD /* Seeds */ = {
 			isa = PBXGroup;
 			children = (
+				13357427BF0EC22B3689C017 /* question_seed_manifest.txt */,
 				58CF7279F2488BAE71E9FE95 /* questions_cheko_boost_pack.json */,
 				20EA8D16EC974845CCD7CE9A /* questions_cheko_extension_pack.json */,
 				6A60C72561B8E58AFEBDE034 /* questions_cheko_style_pack.json */,
@@ -372,6 +377,7 @@
 				F5D35F88BFE5C0CDEB799C55 /* questions_xisai_extended_pack.json */,
 				E3CA72C604356E7F47F467B3 /* questions_xisai_reference_pack.json */,
 				0E4B3B654621ADC66F15A9D8 /* questions_xisai_subjective_pack.json */,
+				3578ED01D427FB0DD5286EE7 /* ruankao_seed.sqlite */,
 			);
 			path = Seeds;
 			sourceTree = "<group>";
@@ -425,6 +431,7 @@
 				LastUpgradeCheck = 1430;
 				TargetAttributes = {
 					9A81CCD7F2F913EA3325F633 = {
+						DevelopmentTeam = 53HX95C65Q;
 						ProvisioningStyle = Automatic;
 					};
 				};
@@ -455,6 +462,7 @@
 			files = (
 				3AE15AB1F303E297358297CF /* Assets.xcassets in Resources */,
 				C350C16449B37BFC6DFE1750 /* LaunchScreen.storyboard in Resources */,
+				6ADC22B856E9CDA0690AB8D6 /* question_seed_manifest.txt in Resources */,
 				EC87A15A360706035CA7EAE3 /* questions_cheko_boost_pack.json in Resources */,
 				BEF2B4DF0A33C2E1041AB0DF /* questions_cheko_extension_pack.json in Resources */,
 				706D5ED19F8D0B0062355554 /* questions_cheko_style_pack.json in Resources */,
@@ -466,6 +474,7 @@
 				B3FC49E84CE85CD6AB524BAC /* questions_xisai_extended_pack.json in Resources */,
 				E253E33B0A624F6252AC6D44 /* questions_xisai_reference_pack.json in Resources */,
 				2BA739AD445873FDF92119FA /* questions_xisai_subjective_pack.json in Resources */,
+				1461E0F225F639FE73B61A0E /* ruankao_seed.sqlite in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -561,7 +570,7 @@
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				COPY_PHASE_STRIP = NO;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
-				DEVELOPMENT_TEAM = 4K946ALQ47;
+				DEVELOPMENT_TEAM = 53HX95C65Q;
 				ENABLE_NS_ASSERTIONS = NO;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
 				GCC_C_LANGUAGE_STANDARD = gnu11;
@@ -619,7 +628,7 @@
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				COPY_PHASE_STRIP = NO;
 				DEBUG_INFORMATION_FORMAT = dwarf;
-				DEVELOPMENT_TEAM = 4K946ALQ47;
+				DEVELOPMENT_TEAM = 53HX95C65Q;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
 				ENABLE_TESTABILITY = YES;
 				GCC_C_LANGUAGE_STANDARD = gnu11;
@@ -656,7 +665,6 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				CODE_SIGN_STYLE = Automatic;
-				DEVELOPMENT_TEAM = 53HX95C65Q;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = RuanKao/Support/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -664,7 +672,7 @@
 					"@executable_path/Frameworks",
 				);
 				SDKROOT = iphoneos;
-				TARGETED_DEVICE_FAMILY = "1,2";
+				TARGETED_DEVICE_FAMILY = 1;
 			};
 			name = Debug;
 		};
@@ -675,7 +683,6 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				CODE_SIGN_STYLE = Automatic;
-				DEVELOPMENT_TEAM = 53HX95C65Q;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = RuanKao/Support/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -683,7 +690,7 @@
 					"@executable_path/Frameworks",
 				);
 				SDKROOT = iphoneos;
-				TARGETED_DEVICE_FAMILY = "1,2";
+				TARGETED_DEVICE_FAMILY = 1;
 			};
 			name = Release;
 		};

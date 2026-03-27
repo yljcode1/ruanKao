@@ -108,7 +108,7 @@ enum RemoteAIServiceError: LocalizedError {
     }
 }
 
-final class RemoteAIStudyService: AIStudyServiceProtocol {
+final class RemoteAIStudyService: AIStudyServiceProtocol, @unchecked Sendable {
     private enum EndpointProtocol {
         case custom
         case responses

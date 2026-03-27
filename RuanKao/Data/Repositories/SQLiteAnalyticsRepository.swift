@@ -1,7 +1,7 @@
 import Foundation
 import SQLite3
 
-final class SQLiteAnalyticsRepository: AnalyticsRepositoryProtocol {
+final class SQLiteAnalyticsRepository: AnalyticsRepositoryProtocol, @unchecked Sendable {
     private let database: SQLiteDatabase
     private let dayFormatter: DateFormatter = {
         let formatter = DateFormatter()

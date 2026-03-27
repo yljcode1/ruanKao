@@ -419,6 +419,10 @@ struct FocusPracticeSessionView: View {
                 questionRepository: container.questionRepository,
                 progressRepository: container.progressRepository,
                 aiStudyService: container.aiStudyService,
+                practiceSessionStore: container.practiceSessionStore,
+                notifyStudyDataChanged: {
+                    container.studyDataStore.markChanged()
+                },
                 recordRecentSearch: { keyword in
                     container.recentActivityStore.recordSearch(keyword)
                 },
@@ -662,7 +666,7 @@ struct FocusPracticeSessionView: View {
                 } else if viewModel.awaitingSubjectiveAssessment {
                     HStack(spacing: 12) {
                         Button {
-                            viewModel.markSubjectiveResult(isCorrect: false)
+                            viewModel.markSubjectiveResult(.needsWork)
                         } label: {
                             Text("需重练")
                                 .font(.subheadline.weight(.semibold))
@@ -672,7 +676,17 @@ struct FocusPracticeSessionView: View {
                         .appButton(.secondary)
 
                         Button {
-                            viewModel.markSubjectiveResult(isCorrect: true)
+                            viewModel.markSubjectiveResult(.partial)
+                        } label: {
+                            Text("半掌握")
+                                .font(.subheadline.weight(.semibold))
+                                .frame(maxWidth: .infinity)
+                                .padding(.vertical, 14)
+                        }
+                        .appButton(.secondary)
+
+                        Button {
+                            viewModel.markSubjectiveResult(.mastered)
                         } label: {
                             Text("已掌握")
                                 .font(.subheadline.weight(.semibold))

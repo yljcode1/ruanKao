@@ -3,8 +3,12 @@ import SwiftUI
 
 struct AnalyticsView: View {
     @StateObject private var viewModel: AnalyticsViewModel
+    @ObservedObject private var studyDataStore: StudyDataStore
+    private let container: AppContainer
 
     init(container: AppContainer) {
+        self.container = container
+        _studyDataStore = ObservedObject(wrappedValue: container.studyDataStore)
         _viewModel = StateObject(
             wrappedValue: AnalyticsViewModel(analyticsRepository: container.analyticsRepository)
         )
@@ -24,10 +28,13 @@ struct AnalyticsView: View {
         .navigationTitle("学习分析")
         .appScreenChrome()
         .task {
-            viewModel.load()
+            viewModel.loadIfNeeded()
         }
         .refreshable {
-            viewModel.load()
+            viewModel.load(force: true)
+        }
+        .onReceive(studyDataStore.$revision.dropFirst()) { _ in
+            viewModel.load(force: true)
         }
     }
 
@@ -43,8 +50,14 @@ struct AnalyticsView: View {
                     .foregroundStyle(AppTheme.Colors.textSecondary)
 
                 HStack(spacing: 12) {
-                    headerMetric(title: "趋势天数", value: "\(viewModel.trend.count)")
-                    headerMetric(title: "知识点数", value: "\(viewModel.weakPoints.count)")
+                    headerMetric(
+                        title: "趋势天数",
+                        value: viewModel.isLoading && viewModel.trend.isEmpty ? "--" : "\(viewModel.trend.count)"
+                    )
+                    headerMetric(
+                        title: "知识点数",
+                        value: viewModel.isLoading && viewModel.weakPoints.isEmpty ? "--" : "\(viewModel.weakPoints.count)"
+                    )
                 }
             }
         }
@@ -52,7 +65,16 @@ struct AnalyticsView: View {
 
     @ViewBuilder
     private var trendCard: some View {
-        if !viewModel.trend.isEmpty {
+        if viewModel.isLoading && viewModel.trend.isEmpty {
+            StatePanel(
+                title: "正在加载学习曲线",
+                message: "正在读取最近 14 天的练习量和正确率。",
+                icon: "clock.arrow.circlepath"
+            ) {
+                ProgressView()
+                    .tint(AppTheme.Colors.primary)
+            }
+        } else if !viewModel.trend.isEmpty {
             PrimaryCard {
                 VStack(alignment: .leading, spacing: 14) {
                     SectionHeader("最近 14 天学习曲线", subtitle: "柱状图看练习量，折线看正确率")
@@ -96,7 +118,7 @@ struct AnalyticsView: View {
                 tint: AppTheme.Colors.danger
             ) {
                 Button("重新加载") {
-                    viewModel.load()
+                    viewModel.load(force: true)
                 }
                 .appButton()
             }
@@ -111,42 +133,78 @@ struct AnalyticsView: View {
 
     @ViewBuilder
     private var weakPointCard: some View {
-        if !viewModel.weakPoints.isEmpty {
+        if viewModel.isLoading && viewModel.weakPoints.isEmpty {
+            StatePanel(
+                title: "正在分析薄弱点",
+                message: "正在汇总知识点练习次数和正确率。",
+                icon: "chart.bar.doc.horizontal"
+            ) {
+                ProgressView()
+                    .tint(AppTheme.Colors.primary)
+            }
+        } else if let errorMessage = viewModel.errorMessage, viewModel.weakPoints.isEmpty {
+            StatePanel(
+                title: "薄弱点分析加载失败",
+                message: errorMessage,
+                icon: "exclamationmark.triangle",
+                tint: AppTheme.Colors.danger
+            ) {
+                Button("重新加载") {
+                    viewModel.load(force: true)
+                }
+                .appButton()
+            }
+        } else if !viewModel.weakPoints.isEmpty {
             PrimaryCard(style: .subtle) {
                 VStack(alignment: .leading, spacing: 14) {
                     SectionHeader("薄弱知识点排行", subtitle: "优先处理正确率低且练习次数多的知识点")
 
                     ForEach(Array(viewModel.weakPoints.enumerated()), id: \.element.id) { index, item in
-                        VStack(alignment: .leading, spacing: 8) {
-                            HStack(alignment: .firstTextBaseline) {
-                                HStack(spacing: 10) {
-                                    Text("\(index + 1)")
-                                        .font(.caption.weight(.bold))
-                                        .foregroundStyle(Color.white)
-                                        .frame(width: 22, height: 22)
-                                        .background(index < 3 ? AppTheme.Colors.textPrimary : AppTheme.Colors.secondary)
-                                        .clipShape(Circle())
+                        NavigationLink {
+                            PracticeView(
+                                container: container,
+                                preferredMode: .random,
+                                initialSearchText: item.name
+                            )
+                        } label: {
+                            VStack(alignment: .leading, spacing: 8) {
+                                HStack(alignment: .firstTextBaseline) {
+                                    HStack(spacing: 10) {
+                                        Text("\(index + 1)")
+                                            .font(.caption.weight(.bold))
+                                            .foregroundStyle(Color.white)
+                                            .frame(width: 22, height: 22)
+                                            .background(index < 3 ? AppTheme.Colors.textPrimary : AppTheme.Colors.secondary)
+                                            .clipShape(Circle())
 
-                                    Text(item.name)
-                                        .font(.subheadline.weight(.semibold))
-                                        .foregroundStyle(AppTheme.Colors.textPrimary)
+                                        Text(item.name)
+                                            .font(.subheadline.weight(.semibold))
+                                            .foregroundStyle(AppTheme.Colors.textPrimary)
+                                    }
+
+                                    Spacer()
+
+                                    Text(item.accuracy.formatted(.percent.precision(.fractionLength(0))))
+                                        .font(.subheadline.weight(.bold))
+                                        .foregroundStyle(weakPointColor(for: item.accuracy))
                                 }
 
-                                Spacer()
+                                ProgressView(value: item.accuracy)
+                                    .tint(weakPointColor(for: item.accuracy))
+                                    .scaleEffect(x: 1, y: 1.15, anchor: .center)
 
-                                Text(item.accuracy.formatted(.percent.precision(.fractionLength(0))))
-                                    .font(.subheadline.weight(.bold))
-                                    .foregroundStyle(weakPointColor(for: item.accuracy))
+                                HStack {
+                                    Text("累计练习 \(item.practicedCount) 次")
+                                        .font(.caption)
+                                        .foregroundStyle(AppTheme.Colors.textSecondary)
+                                    Spacer()
+                                    Text("去针对练习")
+                                        .font(.caption.weight(.semibold))
+                                        .foregroundStyle(AppTheme.Colors.primary)
+                                }
                             }
-
-                            ProgressView(value: item.accuracy)
-                                .tint(weakPointColor(for: item.accuracy))
-                                .scaleEffect(x: 1, y: 1.15, anchor: .center)
-
-                            Text("累计练习 \(item.practicedCount) 次")
-                                .font(.caption)
-                                .foregroundStyle(AppTheme.Colors.textSecondary)
                         }
+                        .buttonStyle(.plain)
                     }
                 }
             }

@@ -32,6 +32,12 @@ final class SQLiteQuestionRepository: QuestionRepositoryProtocol, @unchecked Sen
         }
     }
 
+    private struct SearchSuggestionCandidate {
+        let suggestion: String
+        let weight: Int
+        let sourceRank: Int
+    }
+
     private enum MetadataKey {
         static let questionSeedManifest = "question_seed_manifest"
         static let questionSearchManifest = "question_search_manifest"
@@ -40,9 +46,19 @@ final class SQLiteQuestionRepository: QuestionRepositoryProtocol, @unchecked Sen
     private let database: SQLiteDatabase
     private let decoder = JSONDecoder()
     private let encoder = JSONEncoder()
+    private let cacheLock = NSLock()
+    private var cachedCategories: [String]?
+    private var cachedYears: [Int]?
+    private var cachedTopicSummaries: [TopicSummary]?
+    private var cachedSearchSuggestionCandidates: [SearchSuggestionCandidate]?
+    private var cachedSearchIndexSupport: Bool?
 
     init(database: SQLiteDatabase) {
         self.database = database
+    }
+
+    func hasQuestionBank() throws -> Bool {
+        try questionCount() > 0
     }
 
     func seedIfNeeded() throws {
@@ -64,6 +80,23 @@ final class SQLiteQuestionRepository: QuestionRepositoryProtocol, @unchecked Sen
         let seedBundle = QuestionSeedLoader.loadSeedBundle()
         guard !seedBundle.questions.isEmpty else { return }
 
+        if let bundledDatabaseURL = QuestionSeedLoader.bundledDatabaseSnapshotURL() {
+            do {
+                try importBundledQuestionBank(
+                    from: bundledDatabaseURL,
+                    manifest: currentManifest,
+                    searchManifest: searchManifest,
+                    searchIndexSupported: searchIndexSupported
+                )
+                if searchIndexSupported, try searchIndexCount() == 0 {
+                    try rebuildSearchIndex(searchManifest: searchManifest)
+                }
+                return
+            } catch {
+                print("Falling back to JSON question seed import: \(error)")
+            }
+        }
+
         try bulkUpsert(
             questions: seedBundle.questions,
             manifest: seedBundle.manifest,
@@ -78,17 +111,7 @@ final class SQLiteQuestionRepository: QuestionRepositoryProtocol, @unchecked Sen
 
         switch mode {
         case .sequential:
-            let rows = try fetchQuestionRows(
-                sql: """
-                \(questionSelectSQL)
-                \(query.fromClause)
-                \(query.whereClause)
-                ORDER BY questions.year DESC, questions.id ASC
-                ;
-                """,
-                bindings: query.bindings
-            )
-            selectedRows = Array(deduplicatedQuestionRows(rows).prefix(limit))
+            selectedRows = try fetchSequentialQuestionRows(query: query, limit: limit)
         case .random, .mockExam, .wrongOnly:
             var rows = deduplicatedQuestionRows(
                 try fetchQuestionRows(
@@ -108,8 +131,70 @@ final class SQLiteQuestionRepository: QuestionRepositoryProtocol, @unchecked Sen
         return try makeQuestions(from: selectedRows)
     }
 
+    func fetchQuestions(questionIDs: [Int64]) throws -> [Question] {
+        guard !questionIDs.isEmpty else { return [] }
+
+        let questionMap = try fetchQuestionMap(questionIDs: questionIDs)
+        return questionIDs.compactMap { questionMap[$0] }
+    }
+
+    func fetchSearchSuggestions(keyword: String, limit: Int) throws -> [String] {
+        let normalizedKeyword = keyword.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !normalizedKeyword.isEmpty, limit > 0 else { return [] }
+
+        let foldedKeyword = normalizedKeyword.folding(
+            options: [.caseInsensitive, .diacriticInsensitive, .widthInsensitive],
+            locale: .current
+        )
+
+        return try searchSuggestionCandidates()
+            .filter { candidate in
+                candidate.suggestion.folding(
+                    options: [.caseInsensitive, .diacriticInsensitive, .widthInsensitive],
+                    locale: .current
+                )
+                .contains(foldedKeyword)
+            }
+            .sorted { lhs, rhs in
+                let lhsText = lhs.suggestion.folding(
+                    options: [.caseInsensitive, .diacriticInsensitive, .widthInsensitive],
+                    locale: .current
+                )
+                let rhsText = rhs.suggestion.folding(
+                    options: [.caseInsensitive, .diacriticInsensitive, .widthInsensitive],
+                    locale: .current
+                )
+                let lhsPrefix = lhsText.hasPrefix(foldedKeyword)
+                let rhsPrefix = rhsText.hasPrefix(foldedKeyword)
+
+                if lhsPrefix != rhsPrefix {
+                    return lhsPrefix && !rhsPrefix
+                }
+
+                if lhs.sourceRank != rhs.sourceRank {
+                    return lhs.sourceRank < rhs.sourceRank
+                }
+
+                if lhs.weight != rhs.weight {
+                    return lhs.weight > rhs.weight
+                }
+
+                if lhs.suggestion.count != rhs.suggestion.count {
+                    return lhs.suggestion.count < rhs.suggestion.count
+                }
+
+                return lhs.suggestion.localizedCompare(rhs.suggestion) == .orderedAscending
+            }
+            .prefix(limit)
+            .map(\.suggestion)
+    }
+
     func fetchCategories() throws -> [String] {
-        try database.read { db in
+        if let cached = withCacheLock({ cachedCategories }) {
+            return cached
+        }
+
+        let categories = try database.read { db in
             let statement = try prepareStatement(
                 database: db,
                 sql: """
@@ -126,10 +211,19 @@ final class SQLiteQuestionRepository: QuestionRepositoryProtocol, @unchecked Sen
             }
             return categories
         }
+
+        withCacheLock {
+            cachedCategories = categories
+        }
+        return categories
     }
 
     func fetchAvailableYears() throws -> [Int] {
-        try database.read { db in
+        if let cached = withCacheLock({ cachedYears }) {
+            return cached
+        }
+
+        let years = try database.read { db in
             let statement = try prepareStatement(
                 database: db,
                 sql: """
@@ -146,9 +240,21 @@ final class SQLiteQuestionRepository: QuestionRepositoryProtocol, @unchecked Sen
             }
             return years
         }
+
+        withCacheLock {
+            cachedYears = years
+        }
+        return years
     }
 
     func fetchTopicSummaries(limit: Int?) throws -> [TopicSummary] {
+        if let cached = withCacheLock({ cachedTopicSummaries }) {
+            if let limit {
+                return Array(cached.prefix(limit))
+            }
+            return cached
+        }
+
         var sql = """
         SELECT
             category,
@@ -168,7 +274,7 @@ final class SQLiteQuestionRepository: QuestionRepositoryProtocol, @unchecked Sen
         }
         sql += ";"
 
-        return try database.read { db in
+        let summaries = try database.read { db in
             let statement = try prepareStatement(database: db, sql: sql)
             defer { sqlite3_finalize(statement) }
             try bind(bindings, to: statement)
@@ -188,6 +294,14 @@ final class SQLiteQuestionRepository: QuestionRepositoryProtocol, @unchecked Sen
 
             return summaries
         }
+
+        if limit == nil {
+            withCacheLock {
+                cachedTopicSummaries = summaries
+            }
+        }
+
+        return summaries
     }
 
     func fetchFavoriteQuestions() throws -> [Question] {
@@ -220,6 +334,103 @@ final class SQLiteQuestionRepository: QuestionRepositoryProtocol, @unchecked Sen
                 ids.insert(sqlite3_column_int64(statement, 0))
             }
             return ids
+        }
+    }
+
+    func fetchQuestionAnnotations(questionIDs: [Int64]) throws -> [Int64: QuestionAnnotation] {
+        let uniqueIDs = Array(Set(questionIDs))
+        guard !uniqueIDs.isEmpty else { return [:] }
+
+        let placeholders = Array(repeating: "?", count: uniqueIDs.count).joined(separator: ", ")
+        let bindings = uniqueIDs.map(SQLiteBindingValue.int)
+
+        return try database.read { db in
+            let statement = try prepareStatement(
+                database: db,
+                sql: """
+                SELECT question_id, note, tags, subjective_review, updated_at
+                FROM question_annotations
+                WHERE question_id IN (\(placeholders));
+                """
+            )
+            defer { sqlite3_finalize(statement) }
+            try bind(bindings, to: statement)
+
+            var mapping: [Int64: QuestionAnnotation] = [:]
+
+            while sqlite3_step(statement) == SQLITE_ROW {
+                let questionID = sqlite3_column_int64(statement, 0)
+                let note = columnText(statement, index: 1)
+                let tagsText = columnText(statement, index: 2)
+                let tagsData = Data(tagsText.utf8)
+                let tags = (try? decoder.decode([String].self, from: tagsData)) ?? []
+
+                let subjectiveRawValue: String? = sqlite3_column_type(statement, 3) == SQLITE_NULL
+                    ? nil
+                    : columnText(statement, index: 3)
+                let subjectiveReviewStatus = subjectiveRawValue.flatMap(SubjectiveReviewStatus.init(rawValue:))
+
+                mapping[questionID] = QuestionAnnotation(
+                    questionID: questionID,
+                    note: note,
+                    tags: tags,
+                    subjectiveReviewStatus: subjectiveReviewStatus,
+                    updatedAt: Date(timeIntervalSince1970: sqlite3_column_double(statement, 4))
+                )
+            }
+
+            return mapping
+        }
+    }
+
+    func saveQuestionAnnotation(_ annotation: QuestionAnnotation) throws {
+        try database.write { db in
+            if annotation.isEmpty {
+                let deleteStatement = try prepareStatement(
+                    database: db,
+                    sql: """
+                    DELETE FROM question_annotations
+                    WHERE question_id = ?;
+                    """
+                )
+                defer { sqlite3_finalize(deleteStatement) }
+
+                try bind([.int(annotation.questionID)], to: deleteStatement)
+                guard sqlite3_step(deleteStatement) == SQLITE_DONE else {
+                    throw SQLiteError.stepFailed(database.lastErrorMessage(db))
+                }
+                return
+            }
+
+            let tagsText = String(decoding: try encoder.encode(annotation.tags), as: UTF8.self)
+            let statement = try prepareStatement(
+                database: db,
+                sql: """
+                INSERT INTO question_annotations (question_id, note, tags, subjective_review, updated_at)
+                VALUES (?, ?, ?, ?, ?)
+                ON CONFLICT(question_id) DO UPDATE SET
+                    note = excluded.note,
+                    tags = excluded.tags,
+                    subjective_review = excluded.subjective_review,
+                    updated_at = excluded.updated_at;
+                """
+            )
+            defer { sqlite3_finalize(statement) }
+
+            try bind(
+                [
+                    .int(annotation.questionID),
+                    .text(annotation.note),
+                    .text(tagsText),
+                    annotation.subjectiveReviewStatus.map { .text($0.rawValue) } ?? .null,
+                    .double(annotation.updatedAt.timeIntervalSince1970)
+                ],
+                to: statement
+            )
+
+            guard sqlite3_step(statement) == SQLITE_DONE else {
+                throw SQLiteError.stepFailed(database.lastErrorMessage(db))
+            }
         }
     }
 
@@ -553,6 +764,127 @@ final class SQLiteQuestionRepository: QuestionRepositoryProtocol, @unchecked Sen
                 )
             }
         }
+
+        invalidateStaticCaches()
+    }
+
+    private func importBundledQuestionBank(
+        from databaseURL: URL,
+        manifest: String,
+        searchManifest: String,
+        searchIndexSupported: Bool
+    ) throws {
+        try database.transaction { db in
+            try execute(
+                sql: "ATTACH DATABASE ? AS seed;",
+                bindings: [.text(databaseURL.path)],
+                database: db
+            )
+            defer {
+                sqlite3_exec(db, "DETACH DATABASE seed;", nil, nil, nil)
+            }
+
+            try execute(
+                sql: """
+                UPDATE questions
+                SET
+                    year = (SELECT year FROM seed.questions WHERE seed.questions.id = questions.id),
+                    stage = (SELECT stage FROM seed.questions WHERE seed.questions.id = questions.id),
+                    type = (SELECT type FROM seed.questions WHERE seed.questions.id = questions.id),
+                    category = (SELECT category FROM seed.questions WHERE seed.questions.id = questions.id),
+                    stem = (SELECT stem FROM seed.questions WHERE seed.questions.id = questions.id),
+                    correct_answers = (SELECT correct_answers FROM seed.questions WHERE seed.questions.id = questions.id),
+                    analysis = (SELECT analysis FROM seed.questions WHERE seed.questions.id = questions.id),
+                    score = (SELECT score FROM seed.questions WHERE seed.questions.id = questions.id),
+                    estimated_minutes = (SELECT estimated_minutes FROM seed.questions WHERE seed.questions.id = questions.id)
+                WHERE id IN (SELECT id FROM seed.questions);
+                """,
+                bindings: [],
+                database: db
+            )
+
+            try execute(
+                sql: """
+                INSERT OR IGNORE INTO questions
+                (id, year, stage, type, category, stem, correct_answers, analysis, score, estimated_minutes)
+                SELECT
+                    id,
+                    year,
+                    stage,
+                    type,
+                    category,
+                    stem,
+                    correct_answers,
+                    analysis,
+                    score,
+                    estimated_minutes
+                FROM seed.questions;
+                """,
+                bindings: [],
+                database: db
+            )
+
+            try execute(
+                sql: """
+                DELETE FROM question_options
+                WHERE question_id IN (SELECT id FROM seed.questions);
+                """,
+                bindings: [],
+                database: db
+            )
+            try execute(
+                sql: """
+                INSERT INTO question_options (question_id, label, content, display_order)
+                SELECT question_id, label, content, display_order
+                FROM seed.question_options;
+                """,
+                bindings: [],
+                database: db
+            )
+
+            try execute(
+                sql: """
+                DELETE FROM question_knowledge_points
+                WHERE question_id IN (SELECT id FROM seed.questions);
+                """,
+                bindings: [],
+                database: db
+            )
+            try execute(
+                sql: """
+                INSERT INTO question_knowledge_points (question_id, knowledge_point)
+                SELECT question_id, knowledge_point
+                FROM seed.question_knowledge_points;
+                """,
+                bindings: [],
+                database: db
+            )
+
+            let seedHasSearchIndex = searchIndexSupported
+                ? (try hasTable(named: "question_search", schema: "seed", database: db))
+                : false
+            if searchIndexSupported, seedHasSearchIndex {
+                try execute(sql: "DELETE FROM question_search;", bindings: [], database: db)
+                try execute(
+                    sql: """
+                    INSERT INTO question_search (question_id, searchable_text)
+                    SELECT question_id, searchable_text
+                    FROM seed.question_search;
+                    """,
+                    bindings: [],
+                    database: db
+                )
+            }
+
+            try upsertMetadata(key: MetadataKey.questionSeedManifest, value: manifest, database: db)
+            if searchIndexSupported {
+                if seedHasSearchIndex {
+                    try upsertMetadata(key: MetadataKey.questionSearchManifest, value: searchManifest, database: db)
+                }
+            }
+        }
+
+        invalidateStaticCaches()
     }
 
     private func executeUpdate(statement: OpaquePointer?, bindings: [SQLiteBindingValue], database db: OpaquePointer) throws {
@@ -563,6 +895,28 @@ final class SQLiteQuestionRepository: QuestionRepositoryProtocol, @unchecked Sen
         guard sqlite3_step(statement) == SQLITE_DONE else {
             throw SQLiteError.stepFailed(database.lastErrorMessage(db))
         }
+    }
+
+    private func execute(sql: String, bindings: [SQLiteBindingValue], database db: OpaquePointer) throws {
+        let statement = try prepareStatement(database: db, sql: sql)
+        defer { sqlite3_finalize(statement) }
+        try bind(bindings, to: statement)
+
+        guard sqlite3_step(statement) == SQLITE_DONE else {
+            throw SQLiteError.stepFailed(database.lastErrorMessage(db))
+        }
+    }
+
+    private func upsertMetadata(key: String, value: String, database db: OpaquePointer) throws {
+        try execute(
+            sql: """
+            INSERT INTO app_metadata (key, value)
+            VALUES (?, ?)
+            ON CONFLICT(key) DO UPDATE SET value = excluded.value;
+            """,
+            bindings: [.text(key), .text(value)],
+            database: db
+        )
     }
 
     private func questionCount() throws -> Int {
@@ -576,6 +930,21 @@ final class SQLiteQuestionRepository: QuestionRepositoryProtocol, @unchecked Sen
 
             return Int(sqlite3_column_int(statement, 0))
         }
+    }
+
+    private func hasTable(named name: String, schema: String, database db: OpaquePointer) throws -> Bool {
+        let statement = try prepareStatement(
+            database: db,
+            sql: """
+            SELECT 1
+            FROM \(schema).sqlite_master
+            WHERE name = ?
+            LIMIT 1;
+            """
+        )
+        defer { sqlite3_finalize(statement) }
+        try bind([.text(name)], to: statement)
+        return sqlite3_step(statement) == SQLITE_ROW
     }
 
     private func searchIndexCount() throws -> Int {
@@ -618,7 +987,11 @@ final class SQLiteQuestionRepository: QuestionRepositoryProtocol, @unchecked Sen
     }
 
     private func hasSearchIndex() throws -> Bool {
-        try database.read { db in
+        if let cached = withCacheLock({ cachedSearchIndexSupport }) {
+            return cached
+        }
+
+        let hasIndex = try database.read { db in
             let statement = try prepareStatement(
                 database: db,
                 sql: """
@@ -632,6 +1005,11 @@ final class SQLiteQuestionRepository: QuestionRepositoryProtocol, @unchecked Sen
 
             return sqlite3_step(statement) == SQLITE_ROW
         }
+
+        withCacheLock {
+            cachedSearchIndexSupport = hasIndex
+        }
+        return hasIndex
     }
 
     private func rebuildSearchIndex(searchManifest: String) throws {
@@ -712,6 +1090,52 @@ final class SQLiteQuestionRepository: QuestionRepositoryProtocol, @unchecked Sen
         }
     }
 
+    private func searchSuggestionCandidates() throws -> [SearchSuggestionCandidate] {
+        if let cached = withCacheLock({ cachedSearchSuggestionCandidates }) {
+            return cached
+        }
+
+        let candidates = try database.read { db in
+            let statement = try prepareStatement(
+                database: db,
+                sql: """
+                WITH suggestions AS (
+                    SELECT category AS suggestion, COUNT(*) AS weight, 0 AS source_rank
+                    FROM questions
+                    GROUP BY category
+
+                    UNION ALL
+
+                    SELECT knowledge_point AS suggestion, COUNT(*) AS weight, 1 AS source_rank
+                    FROM question_knowledge_points
+                    GROUP BY knowledge_point
+                )
+                SELECT suggestion, SUM(weight) AS total_weight, MIN(source_rank) AS source_rank
+                FROM suggestions
+                GROUP BY suggestion;
+                """
+            )
+            defer { sqlite3_finalize(statement) }
+
+            var values: [SearchSuggestionCandidate] = []
+            while sqlite3_step(statement) == SQLITE_ROW {
+                values.append(
+                    SearchSuggestionCandidate(
+                        suggestion: columnText(statement, index: 0),
+                        weight: Int(sqlite3_column_int(statement, 1)),
+                        sourceRank: Int(sqlite3_column_int(statement, 2))
+                    )
+                )
+            }
+            return values
+        }
+
+        withCacheLock {
+            cachedSearchSuggestionCandidates = candidates
+        }
+        return candidates
+    }
+
     private func fetchQuestion(id: Int64) throws -> Question? {
         try fetchQuestionMap(questionIDs: [id])[id]
     }
@@ -729,6 +1153,52 @@ final class SQLiteQuestionRepository: QuestionRepositoryProtocol, @unchecked Sen
         }
 
         return uniqueRows
+    }
+
+    private func fetchSequentialQuestionRows(query: QuestionQuery, limit: Int) throws -> [QuestionRow] {
+        guard limit > 0 else { return [] }
+
+        let batchSize = max(80, limit * 4)
+        var offset = 0
+        var seenKeys = Set<String>()
+        var selectedRows: [QuestionRow] = []
+
+        while selectedRows.count < limit {
+            var bindings = query.bindings
+            bindings.append(.int(Int64(batchSize)))
+            bindings.append(.int(Int64(offset)))
+
+            let batch = try fetchQuestionRows(
+                sql: """
+                \(questionSelectSQL)
+                \(query.fromClause)
+                \(query.whereClause)
+                ORDER BY questions.year DESC, questions.id ASC
+                LIMIT ? OFFSET ?;
+                """,
+                bindings: bindings
+            )
+
+            guard !batch.isEmpty else { break }
+
+            for row in batch {
+                let key = dedupeKey(for: row)
+                if seenKeys.insert(key).inserted {
+                    selectedRows.append(row)
+                    if selectedRows.count == limit {
+                        break
+                    }
+                }
+            }
+
+            if batch.count < batchSize {
+                break
+            }
+
+            offset += batch.count
+        }
+
+        return selectedRows
     }
 
     private func dedupeKey(for row: QuestionRow) -> String {
@@ -956,4 +1426,21 @@ final class SQLiteQuestionRepository: QuestionRepositoryProtocol, @unchecked Sen
         questions.score,
         questions.estimated_minutes
     """
+
+    private func invalidateStaticCaches() {
+        withCacheLock {
+            cachedCategories = nil
+            cachedYears = nil
+            cachedTopicSummaries = nil
+            cachedSearchSuggestionCandidates = nil
+            cachedSearchIndexSupport = nil
+        }
+    }
+
+    @discardableResult
+    private func withCacheLock<T>(_ body: () -> T) -> T {
+        cacheLock.lock()
+        defer { cacheLock.unlock() }
+        return body()
+    }
 }

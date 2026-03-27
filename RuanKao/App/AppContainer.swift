@@ -10,6 +10,8 @@ final class AppContainer: ObservableObject {
     let aiStudyService: AIStudyServiceProtocol
     let focusSessionStore: FocusSessionStore
     let recentActivityStore: RecentActivityStore
+    let practiceSessionStore: PracticeSessionStore
+    let studyDataStore: StudyDataStore
     @Published private(set) var isPrepared = false
     @Published private(set) var isPreparing = false
     @Published var preparationError: String?
@@ -21,7 +23,10 @@ final class AppContainer: ObservableObject {
         analyticsRepository: AnalyticsRepositoryProtocol,
         aiStudyService: AIStudyServiceProtocol,
         focusSessionStore: FocusSessionStore,
-        recentActivityStore: RecentActivityStore
+        recentActivityStore: RecentActivityStore,
+        practiceSessionStore: PracticeSessionStore,
+        studyDataStore: StudyDataStore,
+        isPrepared: Bool = false
     ) {
         self.database = database
         self.questionRepository = questionRepository
@@ -30,6 +35,9 @@ final class AppContainer: ObservableObject {
         self.aiStudyService = aiStudyService
         self.focusSessionStore = focusSessionStore
         self.recentActivityStore = recentActivityStore
+        self.practiceSessionStore = practiceSessionStore
+        self.studyDataStore = studyDataStore
+        self.isPrepared = isPrepared
     }
 
     func prepareIfNeeded() {
@@ -37,33 +45,76 @@ final class AppContainer: ObservableObject {
 
         isPreparing = true
         preparationError = nil
+        runQuestionBankPreparation(qos: .userInitiated, surfacesErrorsInUI: true)
+    }
 
+    private func runQuestionBankPreparation(
+        qos: DispatchQoS.QoSClass,
+        surfacesErrorsInUI: Bool
+    ) {
         let repository = questionRepository
-        DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+        let priority = taskPriority(for: qos)
+
+        Task.detached(priority: priority) { [weak self] in
             do {
                 try repository.seedIfNeeded()
 
                 Task { @MainActor [weak self] in
-                    self?.isPreparing = false
                     self?.isPrepared = true
+                    if surfacesErrorsInUI {
+                        self?.isPreparing = false
+                    }
                 }
             } catch {
                 Task { @MainActor [weak self] in
-                    self?.isPreparing = false
-                    self?.preparationError = error.localizedDescription
+                    if surfacesErrorsInUI {
+                        self?.isPreparing = false
+                        self?.preparationError = error.localizedDescription
+                    } else {
+                        print("Failed to synchronize bundled question bank: \(error)")
+                    }
                 }
             }
         }
     }
 
+    private func taskPriority(for qos: DispatchQoS.QoSClass) -> TaskPriority {
+        switch qos {
+        case .userInteractive:
+            return .high
+        case .userInitiated:
+            return .userInitiated
+        case .default:
+            return .medium
+        case .utility:
+            return .low
+        case .background:
+            return .background
+        default:
+            return .medium
+        }
+    }
+
     static func bootstrap() -> AppContainer {
         do {
-            let database = try SQLiteDatabase(databaseName: "ruankao.sqlite")
+            let databaseName = "ruankao.sqlite"
+            do {
+                try QuestionSeedLoader.installBundledDatabaseIfNeeded(databaseName: databaseName)
+            } catch {
+                print("Failed to install bundled seed database: \(error)")
+            }
+
+            let database = try SQLiteDatabase(databaseName: databaseName)
             try DatabaseMigrator.migrate(database: database)
 
             let questionRepository = SQLiteQuestionRepository(database: database)
             let progressRepository = SQLiteProgressRepository(database: database)
             let analyticsRepository = SQLiteAnalyticsRepository(database: database)
+            do {
+                try questionRepository.seedIfNeeded()
+            } catch {
+                print("Failed to synchronize bundled question bank during bootstrap: \(error)")
+            }
             let aiStudyService = HybridAIStudyService(
                 remote: RemoteAIStudyService(
                     configurationProvider: {
@@ -78,19 +129,78 @@ final class AppContainer: ObservableObject {
             )
             let focusSessionStore = FocusSessionStore()
             let recentActivityStore = RecentActivityStore()
+            let practiceSessionStore = PracticeSessionStore()
+            let studyDataStore = StudyDataStore()
+            let hasQuestionBank = (try? questionRepository.hasQuestionBank()) ?? false
 
-            return AppContainer(
+            let container = AppContainer(
                 database: database,
                 questionRepository: questionRepository,
                 progressRepository: progressRepository,
                 analyticsRepository: analyticsRepository,
                 aiStudyService: aiStudyService,
                 focusSessionStore: focusSessionStore,
-                recentActivityStore: recentActivityStore
+                recentActivityStore: recentActivityStore,
+                practiceSessionStore: practiceSessionStore,
+                studyDataStore: studyDataStore,
+                isPrepared: hasQuestionBank
             )
+            return container
         } catch {
             fatalError("Failed to bootstrap application: \(error)")
         }
+    }
+}
+
+@MainActor
+final class StudyDataStore: ObservableObject {
+    @Published private(set) var revision = 0
+
+    func markChanged() {
+        revision += 1
+    }
+}
+
+@MainActor
+final class PracticeSessionStore: ObservableObject {
+    @Published private(set) var snapshot: PracticeSessionSnapshot?
+
+    private let defaults: UserDefaults
+    private let key = "active_practice_session_v1"
+    private let encoder = JSONEncoder()
+    private let decoder = JSONDecoder()
+
+    init(defaults: UserDefaults = .standard) {
+        self.defaults = defaults
+
+        if let data = defaults.data(forKey: key),
+           let snapshot = try? decoder.decode(PracticeSessionSnapshot.self, from: data),
+           snapshot.isResumable {
+            self.snapshot = snapshot
+        } else {
+            self.snapshot = nil
+        }
+    }
+
+    var resumableSession: PracticeSessionSnapshot? {
+        snapshot?.isResumable == true ? snapshot : nil
+    }
+
+    func save(_ snapshot: PracticeSessionSnapshot) {
+        guard snapshot.isResumable else {
+            clear()
+            return
+        }
+
+        self.snapshot = snapshot
+        if let data = try? encoder.encode(snapshot) {
+            defaults.set(data, forKey: key)
+        }
+    }
+
+    func clear() {
+        snapshot = nil
+        defaults.removeObject(forKey: key)
     }
 }
 
@@ -113,7 +223,7 @@ final class RecentActivityStore: ObservableObject {
 
         if let data = defaults.data(forKey: sessionKey),
            let sessions = try? decoder.decode([RecentPracticeEntry].self, from: data) {
-            recentSessions = sessions.sorted { $0.updatedAt > $1.updatedAt }
+            recentSessions = Self.sortedSessions(sessions)
         } else {
             recentSessions = []
         }
@@ -133,31 +243,69 @@ final class RecentActivityStore: ObservableObject {
     }
 
     func recordPractice(mode: PracticeMode, category: String?, year: Int?, keyword: String?) {
+        let existingPinned = recentSessions.first {
+            $0.id == RecentPracticeEntry.makeID(
+                modeRawValue: mode.rawValue,
+                category: normalized(category),
+                year: year,
+                keyword: normalized(keyword)
+            )
+        }?.isPinned ?? false
         let entry = RecentPracticeEntry(
             modeRawValue: mode.rawValue,
             category: normalized(category),
             year: year,
             keyword: normalized(keyword),
-            updatedAt: Date()
+            updatedAt: Date(),
+            isPinned: existingPinned
         )
 
         recentSessions.removeAll { $0.id == entry.id }
-        recentSessions.insert(entry, at: 0)
-        recentSessions = Array(recentSessions.prefix(maxSessionCount))
-
-        if let data = try? encoder.encode(recentSessions) {
-            defaults.set(data, forKey: sessionKey)
-        }
+        recentSessions.append(entry)
+        persistSessions()
 
         if let keyword = entry.keyword {
             recordSearch(keyword)
         }
     }
 
+    func togglePin(entryID: String) {
+        guard let index = recentSessions.firstIndex(where: { $0.id == entryID }) else { return }
+        recentSessions[index] = recentSessions[index].settingPinned(!recentSessions[index].isPinned)
+        persistSessions()
+    }
+
+    func removePractice(entryID: String) {
+        recentSessions.removeAll { $0.id == entryID }
+        persistSessions()
+    }
+
     private func normalized(_ value: String?) -> String? {
         guard let value else { return nil }
         let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
         return trimmed.isEmpty ? nil : trimmed
+    }
+
+    private func persistSessions() {
+        recentSessions = Array(Self.sortedSessions(recentSessions).prefix(maxSessionCount))
+
+        guard !recentSessions.isEmpty else {
+            defaults.removeObject(forKey: sessionKey)
+            return
+        }
+
+        if let data = try? encoder.encode(recentSessions) {
+            defaults.set(data, forKey: sessionKey)
+        }
+    }
+
+    private static func sortedSessions(_ sessions: [RecentPracticeEntry]) -> [RecentPracticeEntry] {
+        sessions.sorted { lhs, rhs in
+            if lhs.isPinned != rhs.isPinned {
+                return lhs.isPinned && !rhs.isPinned
+            }
+            return lhs.updatedAt > rhs.updatedAt
+        }
     }
 }
 
@@ -167,10 +315,45 @@ struct RecentPracticeEntry: Codable, Hashable, Identifiable {
     let year: Int?
     let keyword: String?
     let updatedAt: Date
+    let isPinned: Bool
+
+    private enum CodingKeys: String, CodingKey {
+        case modeRawValue
+        case category
+        case year
+        case keyword
+        case updatedAt
+        case isPinned
+    }
+
+    init(
+        modeRawValue: String,
+        category: String?,
+        year: Int?,
+        keyword: String?,
+        updatedAt: Date,
+        isPinned: Bool = false
+    ) {
+        self.modeRawValue = modeRawValue
+        self.category = category
+        self.year = year
+        self.keyword = keyword
+        self.updatedAt = updatedAt
+        self.isPinned = isPinned
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        modeRawValue = try container.decode(String.self, forKey: .modeRawValue)
+        category = try container.decodeIfPresent(String.self, forKey: .category)
+        year = try container.decodeIfPresent(Int.self, forKey: .year)
+        keyword = try container.decodeIfPresent(String.self, forKey: .keyword)
+        updatedAt = try container.decode(Date.self, forKey: .updatedAt)
+        isPinned = try container.decodeIfPresent(Bool.self, forKey: .isPinned) ?? false
+    }
 
     var id: String {
-        [modeRawValue, category ?? "", year.map(String.init) ?? "", keyword?.lowercased() ?? ""]
-            .joined(separator: "|")
+        Self.makeID(modeRawValue: modeRawValue, category: category, year: year, keyword: keyword)
     }
 
     var mode: PracticeMode {
@@ -197,5 +380,21 @@ struct RecentPracticeEntry: Codable, Hashable, Identifiable {
         }
 
         return parts.isEmpty ? "无筛选条件，直接继续练" : parts.joined(separator: " · ")
+    }
+
+    func settingPinned(_ isPinned: Bool) -> RecentPracticeEntry {
+        RecentPracticeEntry(
+            modeRawValue: modeRawValue,
+            category: category,
+            year: year,
+            keyword: keyword,
+            updatedAt: updatedAt,
+            isPinned: isPinned
+        )
+    }
+
+    static func makeID(modeRawValue: String, category: String?, year: Int?, keyword: String?) -> String {
+        [modeRawValue, category ?? "", year.map(String.init) ?? "", keyword?.lowercased() ?? ""]
+            .joined(separator: "|")
     }
 }

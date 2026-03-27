@@ -66,6 +66,16 @@ enum DatabaseMigrator {
             );
             """,
             """
+            CREATE TABLE IF NOT EXISTS question_annotations (
+                question_id INTEGER PRIMARY KEY,
+                note TEXT NOT NULL DEFAULT '',
+                tags TEXT NOT NULL DEFAULT '[]',
+                subjective_review TEXT,
+                updated_at REAL NOT NULL,
+                FOREIGN KEY (question_id) REFERENCES questions(id) ON DELETE CASCADE
+            );
+            """,
+            """
             CREATE TABLE IF NOT EXISTS app_metadata (
                 key TEXT PRIMARY KEY,
                 value TEXT NOT NULL
@@ -79,7 +89,8 @@ enum DatabaseMigrator {
             "CREATE INDEX IF NOT EXISTS idx_wrong_questions_mastered_time ON wrong_questions(is_mastered, last_wrong_at DESC);",
             "CREATE INDEX IF NOT EXISTS idx_knowledge_points_name ON question_knowledge_points(knowledge_point);",
             "CREATE INDEX IF NOT EXISTS idx_question_options_question_order ON question_options(question_id, display_order);",
-            "CREATE INDEX IF NOT EXISTS idx_favorite_questions_created_at ON favorite_questions(created_at);"
+            "CREATE INDEX IF NOT EXISTS idx_favorite_questions_created_at ON favorite_questions(created_at);",
+            "CREATE INDEX IF NOT EXISTS idx_question_annotations_updated_at ON question_annotations(updated_at DESC);"
         ]
 
         try statements.forEach(database.execute)
