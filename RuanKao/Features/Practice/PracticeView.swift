@@ -2,6 +2,7 @@ import SwiftUI
 
 struct PracticeView: View {
     @StateObject private var viewModel: PracticeViewModel
+    @ObservedObject private var recentActivityStore: RecentActivityStore
     @State private var isFilterExpanded = false
 
     init(
@@ -16,11 +17,23 @@ struct PracticeView: View {
                 || initialYear != nil
                 || !(initialSearchText?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ?? true)
         )
+        _recentActivityStore = ObservedObject(wrappedValue: container.recentActivityStore)
         _viewModel = StateObject(
             wrappedValue: PracticeViewModel(
                 questionRepository: container.questionRepository,
                 progressRepository: container.progressRepository,
                 aiStudyService: container.aiStudyService,
+                recordRecentSearch: { keyword in
+                    container.recentActivityStore.recordSearch(keyword)
+                },
+                recordRecentPractice: { mode, category, year, keyword in
+                    container.recentActivityStore.recordPractice(
+                        mode: mode,
+                        category: category,
+                        year: year,
+                        keyword: keyword
+                    )
+                },
                 preferredMode: preferredMode,
                 initialCategory: initialCategory,
                 initialYear: initialYear,
@@ -104,6 +117,10 @@ struct PracticeView: View {
                             .stroke(AppTheme.Colors.stroke)
                     }
                     .clipShape(RoundedRectangle(cornerRadius: AppTheme.Metrics.compactRadius, style: .continuous))
+
+                    if !recentActivityStore.recentSearches.isEmpty {
+                        recentSearchSection
+                    }
 
                     VStack(spacing: 10) {
                         HStack(spacing: 10) {
@@ -327,9 +344,10 @@ struct PracticeView: View {
                 VStack(alignment: .leading, spacing: 12) {
                     HStack(alignment: .top, spacing: 12) {
                         VStack(alignment: .leading, spacing: 8) {
-                            Text(question.type.title)
-                                .font(.caption.weight(.semibold))
-                                .foregroundStyle(AppTheme.Colors.textSecondary)
+                            HStack(spacing: 8) {
+                                PillTag(title: question.type.title, icon: "doc.text", tint: AppTheme.Colors.secondary)
+                                sourceBadge(for: question)
+                            }
 
                             Text(question.stem)
                                 .font(.title3.weight(.semibold))
@@ -645,6 +663,45 @@ struct PracticeView: View {
         return items.isEmpty ? "年份 / 章节 / 关键词" : items.joined(separator: " · ")
     }
 
+    private var recentSearchSection: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack {
+                Text("最近搜索")
+                    .font(.footnote.weight(.semibold))
+                    .foregroundStyle(AppTheme.Colors.textSecondary)
+
+                Spacer()
+
+                Button("清空记录") {
+                    recentActivityStore.clearSearches()
+                }
+                .font(.footnote.weight(.semibold))
+                .foregroundStyle(AppTheme.Colors.textSecondary)
+                .buttonStyle(.plain)
+            }
+
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 8) {
+                    ForEach(recentActivityStore.recentSearches, id: \.self) { keyword in
+                        Button {
+                            viewModel.searchText = keyword
+                            viewModel.applySearch()
+                        } label: {
+                            PillTag(
+                                title: keyword,
+                                icon: "clock.arrow.circlepath",
+                                tint: isCurrentSearch(keyword) ? AppTheme.Colors.primary : AppTheme.Colors.secondary,
+                                filled: isCurrentSearch(keyword)
+                            )
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+                .padding(.vertical, 1)
+            }
+        }
+    }
+
     private func infoPill(icon: String, text: String) -> some View {
         HStack(spacing: 6) {
             Image(systemName: icon)
@@ -718,6 +775,19 @@ struct PracticeView: View {
             .clipShape(RoundedRectangle(cornerRadius: AppTheme.Metrics.compactRadius, style: .continuous))
         }
         .buttonStyle(.plain)
+    }
+
+    private func sourceBadge(for question: Question) -> some View {
+        PillTag(
+            title: question.sourceBadgeTitle,
+            icon: question.sourceBadgeIcon,
+            tint: question.isAdapted ? AppTheme.Colors.accent : AppTheme.Colors.primary
+        )
+    }
+
+    private func isCurrentSearch(_ keyword: String) -> Bool {
+        viewModel.searchText.trimmingCharacters(in: .whitespacesAndNewlines)
+            .caseInsensitiveCompare(keyword) == .orderedSame
     }
 
     private func shortTitle(for mode: PracticeMode) -> String {
