@@ -1,13 +1,58 @@
 import Foundation
 
 enum QuestionSeedLoader {
+    struct SeedBundle {
+        let manifest: String
+        let questions: [Question]
+    }
+
     static func load() -> [Question] {
-        let questions = loadBundledSeedQuestions()
-        if !questions.isEmpty {
-            return questions
+        loadSeedBundle().questions
+    }
+
+    static func loadSeedBundle() -> SeedBundle {
+        if let bundledBundle = loadBundledSeedBundle() {
+            return bundledBundle
         }
 
-        return fallbackQuestions
+        return SeedBundle(manifest: fallbackManifest, questions: fallbackQuestions)
+    }
+
+    static func currentManifest() -> String {
+        bundledManifest() ?? fallbackManifest
+    }
+
+    private static func loadBundledSeedBundle() -> SeedBundle? {
+        guard let manifest = bundledManifest() else {
+            return nil
+        }
+
+        let questions = loadBundledSeedQuestions()
+        guard !questions.isEmpty else {
+            return nil
+        }
+
+        return SeedBundle(manifest: manifest, questions: questions)
+    }
+
+    private static func bundledManifest() -> String? {
+        guard let resourceURL = Bundle.main.resourceURL else {
+            return nil
+        }
+
+        let urls = seedURLs(at: resourceURL)
+        guard !urls.isEmpty else {
+            return nil
+        }
+
+        let components = urls.map { url -> String in
+            let values = try? url.resourceValues(forKeys: [.fileSizeKey, .contentModificationDateKey])
+            let fileSize = values?.fileSize ?? 0
+            let modifiedAt = Int(values?.contentModificationDate?.timeIntervalSince1970 ?? 0)
+            return "\(url.lastPathComponent)#\(fileSize)#\(modifiedAt)"
+        }
+
+        return components.joined(separator: "|")
     }
 
     private static func loadBundledSeedQuestions() -> [Question] {
@@ -15,23 +60,8 @@ enum QuestionSeedLoader {
             return []
         }
 
-        let fileManager = FileManager.default
-        guard let enumerator = fileManager.enumerator(
-            at: resourceURL,
-            includingPropertiesForKeys: [.isRegularFileKey],
-            options: [.skipsHiddenFiles]
-        ) else {
-            return []
-        }
-
         let decoder = JSONDecoder()
-        let urls = enumerator
-            .compactMap { $0 as? URL }
-            .filter {
-                $0.pathExtension.lowercased() == "json"
-                    && $0.lastPathComponent.lowercased().contains("question")
-            }
-            .sorted { $0.lastPathComponent < $1.lastPathComponent }
+        let urls = seedURLs(at: resourceURL)
 
         var questionsByID: [Int64: Question] = [:]
 
@@ -54,6 +84,27 @@ enum QuestionSeedLoader {
             return $0.year > $1.year
         }
     }
+
+    private static func seedURLs(at resourceURL: URL) -> [URL] {
+        let fileManager = FileManager.default
+        guard let enumerator = fileManager.enumerator(
+            at: resourceURL,
+            includingPropertiesForKeys: [.isRegularFileKey, .fileSizeKey, .contentModificationDateKey],
+            options: [.skipsHiddenFiles]
+        ) else {
+            return []
+        }
+
+        return enumerator
+            .compactMap { $0 as? URL }
+            .filter {
+                $0.pathExtension.lowercased() == "json"
+                    && $0.lastPathComponent.lowercased().contains("question")
+            }
+            .sorted { $0.lastPathComponent < $1.lastPathComponent }
+    }
+
+    private static let fallbackManifest = "fallback_questions_v1"
 
     private static let fallbackQuestions: [Question] = [
         Question(

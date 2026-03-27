@@ -8,8 +8,14 @@ struct PracticeView: View {
         container: AppContainer,
         preferredMode: PracticeMode = .sequential,
         initialCategory: String? = nil,
-        initialYear: Int? = nil
+        initialYear: Int? = nil,
+        initialSearchText: String? = nil
     ) {
+        _isFilterExpanded = State(
+            initialValue: initialCategory != nil
+                || initialYear != nil
+                || !(initialSearchText?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ?? true)
+        )
         _viewModel = StateObject(
             wrappedValue: PracticeViewModel(
                 questionRepository: container.questionRepository,
@@ -17,7 +23,8 @@ struct PracticeView: View {
                 aiStudyService: container.aiStudyService,
                 preferredMode: preferredMode,
                 initialCategory: initialCategory,
-                initialYear: initialYear
+                initialYear: initialYear,
+                initialSearchText: initialSearchText
             )
         )
     }
@@ -98,55 +105,76 @@ struct PracticeView: View {
                     }
                     .clipShape(RoundedRectangle(cornerRadius: AppTheme.Metrics.compactRadius, style: .continuous))
 
-                    HStack(spacing: 10) {
-                        Menu {
-                            Button("全部年份") {
-                                viewModel.selectYear(nil)
+                    VStack(spacing: 10) {
+                        HStack(spacing: 10) {
+                            Menu {
+                                Button("全部年份") {
+                                    viewModel.selectYear(nil)
+                                }
+
+                                ForEach(viewModel.years, id: \.self) { year in
+                                    Button("\(year)") {
+                                        viewModel.selectYear(year)
+                                    }
+                                }
+                            } label: {
+                                filterMenuLabel(
+                                    title: viewModel.selectedYear.map(String.init) ?? "年份",
+                                    icon: "calendar"
+                                )
                             }
 
-                            ForEach(viewModel.years, id: \.self) { year in
-                                Button("\(year)") {
-                                    viewModel.selectYear(year)
+                            Menu {
+                                Button("全部章节") {
+                                    viewModel.selectCategory(nil)
                                 }
+
+                                ForEach(viewModel.categories, id: \.self) { category in
+                                    Button(category) {
+                                        viewModel.selectCategory(category)
+                                    }
+                                }
+                            } label: {
+                                filterMenuLabel(
+                                    title: viewModel.selectedCategory ?? "章节",
+                                    icon: "line.3.horizontal.decrease.circle"
+                                )
                             }
-                        } label: {
-                            filterMenuLabel(
-                                title: viewModel.selectedYear.map(String.init) ?? "年份",
-                                icon: "calendar"
-                            )
                         }
 
-                        Menu {
-                            Button("全部章节") {
-                                viewModel.selectCategory(nil)
-                            }
-
-                            ForEach(viewModel.categories, id: \.self) { category in
-                                Button(category) {
-                                    viewModel.selectCategory(category)
+                        HStack(spacing: 10) {
+                            Menu {
+                                ForEach(viewModel.availableQuestionLimits, id: \.self) { limit in
+                                    Button("\(limit) 题") {
+                                        viewModel.selectQuestionLimit(limit)
+                                    }
                                 }
+                            } label: {
+                                filterMenuLabel(
+                                    title: "题量 \(viewModel.selectedQuestionLimit)",
+                                    icon: "number.circle"
+                                )
                             }
-                        } label: {
-                            filterMenuLabel(
-                                title: viewModel.selectedCategory ?? "章节",
-                                icon: "line.3.horizontal.decrease.circle"
-                            )
-                        }
 
-                        if viewModel.hasActiveFilters {
-                            Button("清空") {
-                                viewModel.clearFilters()
+                            if viewModel.hasActiveFilters {
+                                Button("清空") {
+                                    viewModel.clearFilters()
+                                }
+                                .font(.footnote.weight(.semibold))
+                                .foregroundStyle(AppTheme.Colors.textSecondary)
+                                .padding(.horizontal, 14)
+                                .padding(.vertical, 11)
+                                .frame(maxWidth: .infinity)
+                                .background(AppTheme.Colors.card)
+                                .overlay {
+                                    Capsule()
+                                        .stroke(AppTheme.Colors.stroke)
+                                }
+                                .clipShape(Capsule())
+                            } else {
+                                Color.clear
+                                    .frame(maxWidth: .infinity)
                             }
-                            .font(.footnote.weight(.semibold))
-                            .foregroundStyle(AppTheme.Colors.textSecondary)
-                            .padding(.horizontal, 14)
-                            .padding(.vertical, 11)
-                            .background(AppTheme.Colors.card)
-                            .overlay {
-                                Capsule()
-                                    .stroke(AppTheme.Colors.stroke)
-                            }
-                            .clipShape(Capsule())
                         }
                     }
                 }
@@ -210,12 +238,18 @@ struct PracticeView: View {
                     sessionMetric(title: "本轮正确率", value: viewModel.accuracyText)
                     sessionMetric(
                         title: viewModel.selectedMode == .mockExam ? "剩余时间" : "已答题数",
-                        value: viewModel.selectedMode == .mockExam ? timeString(viewModel.remainingSeconds) : "\(viewModel.answeredCount)"
+                        value: viewModel.selectedMode == .mockExam
+                            ? timeString(viewModel.remainingSeconds)
+                            : "\(viewModel.answeredCount) / \(viewModel.questions.count)"
                     )
                 }
 
                 if viewModel.hasActiveFilters {
                     Text("筛选：\(activeFilterSummary)")
+                        .font(.footnote)
+                        .foregroundStyle(AppTheme.Colors.textSecondary)
+                } else {
+                    Text("本轮题量：\(viewModel.selectedQuestionLimit) 题")
                         .font(.footnote)
                         .foregroundStyle(AppTheme.Colors.textSecondary)
                 }
@@ -605,7 +639,7 @@ struct PracticeView: View {
 
         let keyword = viewModel.searchText.trimmingCharacters(in: .whitespacesAndNewlines)
         if !keyword.isEmpty {
-            items.append("关键词")
+            items.append(keyword)
         }
 
         return items.isEmpty ? "年份 / 章节 / 关键词" : items.joined(separator: " · ")

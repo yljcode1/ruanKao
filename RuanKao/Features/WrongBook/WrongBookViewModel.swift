@@ -44,7 +44,7 @@ final class WrongBookViewModel: ObservableObject {
     }
 
     var hottestKnowledgePoint: String? {
-        groupedItems.max(by: { $0.1.count < $1.1.count })?.0
+        groupedItems.first?.0
     }
 
     var filteredItems: [WrongQuestionItem] {
@@ -62,7 +62,17 @@ final class WrongBookViewModel: ObservableObject {
         let grouped = Dictionary(grouping: filteredItems, by: \.primaryKnowledgePoint)
         return grouped
             .map { ($0.key, $0.value.sorted { $0.lastWrongAt > $1.lastWrongAt }) }
-            .sorted { $0.0 < $1.0 }
+            .sorted { lhs, rhs in
+                if lhs.1.count == rhs.1.count {
+                    let lhsDate = lhs.1.first?.lastWrongAt ?? .distantPast
+                    let rhsDate = rhs.1.first?.lastWrongAt ?? .distantPast
+                    if lhsDate == rhsDate {
+                        return lhs.0 < rhs.0
+                    }
+                    return lhsDate > rhsDate
+                }
+                return lhs.1.count > rhs.1.count
+            }
     }
 
     func load() {

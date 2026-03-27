@@ -65,15 +65,25 @@ enum DatabaseMigrator {
                 FOREIGN KEY (question_id) REFERENCES questions(id) ON DELETE CASCADE
             );
             """,
+            """
+            CREATE TABLE IF NOT EXISTS app_metadata (
+                key TEXT PRIMARY KEY,
+                value TEXT NOT NULL
+            );
+            """,
             "CREATE INDEX IF NOT EXISTS idx_questions_category ON questions(category);",
+            "CREATE INDEX IF NOT EXISTS idx_questions_year ON questions(year);",
+            "CREATE INDEX IF NOT EXISTS idx_questions_category_year ON questions(category, year DESC);",
             "CREATE INDEX IF NOT EXISTS idx_attempt_records_question ON attempt_records(question_id);",
             "CREATE INDEX IF NOT EXISTS idx_attempt_records_time ON attempt_records(attempted_at);",
+            "CREATE INDEX IF NOT EXISTS idx_wrong_questions_mastered_time ON wrong_questions(is_mastered, last_wrong_at DESC);",
             "CREATE INDEX IF NOT EXISTS idx_knowledge_points_name ON question_knowledge_points(knowledge_point);",
             "CREATE INDEX IF NOT EXISTS idx_question_options_question_order ON question_options(question_id, display_order);",
             "CREATE INDEX IF NOT EXISTS idx_favorite_questions_created_at ON favorite_questions(created_at);"
         ]
 
         try statements.forEach(database.execute)
+        try migrateSearchIndexIfSupported(database: database)
     }
 
     private static func migrateLegacyQuestionOptionsIfNeeded(database: SQLiteDatabase) throws {
@@ -91,5 +101,18 @@ enum DatabaseMigrator {
 
         guard needsMigration else { return }
         try database.execute("DROP TABLE IF EXISTS question_options;")
+    }
+
+    private static func migrateSearchIndexIfSupported(database: SQLiteDatabase) throws {
+        let sql = """
+        CREATE VIRTUAL TABLE IF NOT EXISTS question_search
+        USING fts5(
+            question_id UNINDEXED,
+            searchable_text,
+            tokenize = 'trigram'
+        );
+        """
+
+        try? database.execute(sql)
     }
 }

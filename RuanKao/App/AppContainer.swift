@@ -8,6 +8,9 @@ final class AppContainer: ObservableObject {
     let analyticsRepository: AnalyticsRepositoryProtocol
     let aiStudyService: AIStudyServiceProtocol
     let focusSessionStore: FocusSessionStore
+    @Published private(set) var isPrepared = false
+    @Published private(set) var isPreparing = false
+    @Published var preparationError: String?
 
     init(
         database: SQLiteDatabase,
@@ -25,14 +28,36 @@ final class AppContainer: ObservableObject {
         self.focusSessionStore = focusSessionStore
     }
 
+    func prepareIfNeeded() {
+        guard !isPrepared, !isPreparing else { return }
+
+        isPreparing = true
+        preparationError = nil
+
+        let repository = questionRepository
+        DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+            do {
+                try repository.seedIfNeeded()
+
+                Task { @MainActor [weak self] in
+                    self?.isPreparing = false
+                    self?.isPrepared = true
+                }
+            } catch {
+                Task { @MainActor [weak self] in
+                    self?.isPreparing = false
+                    self?.preparationError = error.localizedDescription
+                }
+            }
+        }
+    }
+
     static func bootstrap() -> AppContainer {
         do {
             let database = try SQLiteDatabase(databaseName: "ruankao.sqlite")
             try DatabaseMigrator.migrate(database: database)
 
             let questionRepository = SQLiteQuestionRepository(database: database)
-            try questionRepository.seedIfNeeded()
-
             let progressRepository = SQLiteProgressRepository(database: database)
             let analyticsRepository = SQLiteAnalyticsRepository(database: database)
             let aiStudyService = HybridAIStudyService(
