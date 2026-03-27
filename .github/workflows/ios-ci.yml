@@ -3,8 +3,9 @@ name: iOS CI
 on:
   push:
     branches:
-      - main
+      - master
       - develop
+      - test
       - 'feature/**'
       - 'release/**'
       - 'hotfix/**'
@@ -12,8 +13,9 @@ on:
       - 'chore/**'
   pull_request:
     branches:
-      - main
+      - master
       - develop
+      - test
   workflow_dispatch:
 
 concurrency:
