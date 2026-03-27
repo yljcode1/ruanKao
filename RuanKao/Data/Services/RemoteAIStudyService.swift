@@ -92,11 +92,11 @@ final class RemoteAIStudyService: AIStudyServiceProtocol {
         }
 
         let model: String
-        let instructions: String
+        let instructions: String?
         let input: String
         let store: Bool
         let reasoning: Reasoning?
-        let text: TextConfiguration
+        let text: TextConfiguration?
     }
 
     private struct InsightSchema: Encodable {
@@ -257,39 +257,54 @@ final class RemoteAIStudyService: AIStudyServiceProtocol {
     ) async throws -> AIStudyInsight {
         let resolvedEndpoint = resolvedResponsesEndpoint(from: endpoint)
         let resolvedModel = try resolvedModel(for: model, endpoint: endpoint)
+        let fallbackSource = sourceLabel(for: endpoint, model: resolvedModel)
 
-        var request = URLRequest(url: resolvedEndpoint)
+        let requestVariants = responsesRequestVariants(
+            model: resolvedModel,
+            question: question,
+            style: style
+        )
+
+        var lastError: Error?
+        for requestBody in requestVariants {
+            do {
+                return try await executeResponsesRequest(
+                    endpoint: resolvedEndpoint,
+                    token: token,
+                    requestBody: requestBody,
+                    fallbackSource: fallbackSource
+                )
+            } catch {
+                lastError = error
+            }
+        }
+
+        if let lastError {
+            throw lastError
+        }
+
+        throw RemoteAIServiceError.requestFailed("Responses API 请求失败。")
+    }
+
+    private func executeResponsesRequest(
+        endpoint: URL,
+        token: String?,
+        requestBody: ResponsesAPIRequest,
+        fallbackSource: String
+    ) async throws -> AIStudyInsight {
+        var request = URLRequest(url: endpoint)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.setValue("application/json", forHTTPHeaderField: "Accept")
         if let token = sanitized(token) {
             request.setValue(authorizationHeaderValue(for: token), forHTTPHeaderField: "Authorization")
         }
-
-        let requestBody = ResponsesAPIRequest(
-            model: resolvedModel,
-            instructions: systemPrompt,
-            input: userPrompt(for: question, style: style),
-            store: false,
-            reasoning: defaultResponsesReasoning(for: resolvedModel).map(ResponsesAPIRequest.Reasoning.init),
-            text: ResponsesAPIRequest.TextConfiguration(
-                format: .init(
-                    type: "json_schema",
-                    name: "ai_study_insight",
-                    schema: InsightSchema(),
-                    strict: true
-                )
-            )
-        )
         request.httpBody = try JSONEncoder().encode(requestBody)
 
         let (data, response) = try await performRequest(request)
         try validateHTTPResponse(response, data: data)
 
-        if let insight = try decodeInsightIfPresent(
-            in: data,
-            fallbackSource: sourceLabel(for: endpoint, model: resolvedModel)
-        ) {
+        if let insight = try decodeInsightIfPresent(in: data, fallbackSource: fallbackSource) {
             return insight
         }
 
@@ -298,16 +313,53 @@ final class RemoteAIStudyService: AIStudyServiceProtocol {
         }
 
         do {
-            return try decodeInsight(
-                from: content,
-                fallbackSource: sourceLabel(for: endpoint, model: resolvedModel)
-            )
+            return try decodeInsight(from: content, fallbackSource: fallbackSource)
         } catch {
-            return fallbackInsight(
-                from: content,
-                fallbackSource: sourceLabel(for: endpoint, model: resolvedModel)
-            )
+            return fallbackInsight(from: content, fallbackSource: fallbackSource)
         }
+    }
+
+    private func responsesRequestVariants(
+        model: String,
+        question: Question,
+        style: AIInsightStyle
+    ) -> [ResponsesAPIRequest] {
+        let standardInput = userPrompt(for: question, style: style)
+        let combinedInput = combinedResponsesPrompt(for: question, style: style)
+
+        return [
+            ResponsesAPIRequest(
+                model: model,
+                instructions: systemPrompt,
+                input: standardInput,
+                store: false,
+                reasoning: defaultResponsesReasoning(for: model).map(ResponsesAPIRequest.Reasoning.init),
+                text: ResponsesAPIRequest.TextConfiguration(
+                    format: .init(
+                        type: "json_schema",
+                        name: "ai_study_insight",
+                        schema: InsightSchema(),
+                        strict: true
+                    )
+                )
+            ),
+            ResponsesAPIRequest(
+                model: model,
+                instructions: systemPrompt,
+                input: standardInput,
+                store: false,
+                reasoning: nil,
+                text: nil
+            ),
+            ResponsesAPIRequest(
+                model: model,
+                instructions: nil,
+                input: combinedInput,
+                store: false,
+                reasoning: nil,
+                text: nil
+            )
+        ]
     }
 
     private func generateViaOpenAICompatibleEndpoint(
@@ -499,6 +551,14 @@ final class RemoteAIStudyService: AIStudyServiceProtocol {
         \(optionsText)
         - 参考答案：\(question.answerSummary)
         - 参考解析：\(question.analysis)
+        """
+    }
+
+    private func combinedResponsesPrompt(for question: Question, style: AIInsightStyle) -> String {
+        """
+        \(systemPrompt)
+
+        \(userPrompt(for: question, style: style))
         """
     }
 
