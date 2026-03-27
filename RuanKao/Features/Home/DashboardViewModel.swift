@@ -20,6 +20,7 @@ final class DashboardViewModel: ObservableObject {
     private let analyticsRepository: AnalyticsRepositoryProtocol
     private let questionRepository: QuestionRepositoryProtocol
     private var loadTask: Task<Void, Never>?
+    private var hasLoaded = false
 
     init(analyticsRepository: AnalyticsRepositoryProtocol, questionRepository: QuestionRepositoryProtocol) {
         self.analyticsRepository = analyticsRepository
@@ -30,7 +31,13 @@ final class DashboardViewModel: ObservableObject {
         loadTask?.cancel()
     }
 
-    func load() {
+    func loadIfNeeded() {
+        guard !hasLoaded, !isLoading else { return }
+        load(force: false)
+    }
+
+    func load(force: Bool = false) {
+        guard force || !hasLoaded else { return }
         loadTask?.cancel()
         isLoading = true
         errorMessage = nil
@@ -62,6 +69,7 @@ final class DashboardViewModel: ObservableObject {
 
             switch result {
             case .success(let payload):
+                self.hasLoaded = true
                 self.snapshot = payload.snapshot
                 self.availableYears = payload.availableYears
                 self.topicSummaries = Array(payload.allTopicSummaries.prefix(6))
@@ -83,7 +91,8 @@ final class DashboardViewModel: ObservableObject {
                     title: "先完成今天的基础题量",
                     subtitle: "建议再做 \(10 - snapshot.todayPracticeCount) 道顺序题，保持连续性。",
                     icon: "target",
-                    tintHexTag: "primary"
+                    tintHexTag: "primary",
+                    destination: PracticeDestination(mode: .sequential)
                 )
             )
         }
@@ -94,7 +103,8 @@ final class DashboardViewModel: ObservableObject {
                     title: "重点补强 \(weakPoint.name)",
                     subtitle: "当前正确率 \(weakPoint.accuracy.formatted(.percent.precision(.fractionLength(0))))，优先刷相关错题。",
                     icon: "bolt.heart",
-                    tintHexTag: "danger"
+                    tintHexTag: "danger",
+                    destination: PracticeDestination(mode: .random, keyword: weakPoint.name)
                 )
             )
         }
@@ -105,7 +115,8 @@ final class DashboardViewModel: ObservableObject {
                     title: "今天还没打卡",
                     subtitle: "做任意 1 道题就会自动累计连续学习天数。",
                     icon: "calendar.badge.plus",
-                    tintHexTag: "primary"
+                    tintHexTag: "primary",
+                    destination: PracticeDestination(mode: .sequential)
                 )
             )
         }
@@ -116,7 +127,8 @@ final class DashboardViewModel: ObservableObject {
                     title: "安排一次模拟考试",
                     subtitle: "综合正确率不错，可以开始做限时训练提升节奏感。",
                     icon: "timer",
-                    tintHexTag: "accent"
+                    tintHexTag: "accent",
+                    destination: PracticeDestination(mode: .mockExam)
                 )
             )
         } else {
@@ -125,7 +137,8 @@ final class DashboardViewModel: ObservableObject {
                     title: "做一轮随机题检索训练",
                     subtitle: "把知识点打散，检验你是否真的记住了。",
                     icon: "shuffle",
-                    tintHexTag: "secondary"
+                    tintHexTag: "secondary",
+                    destination: PracticeDestination(mode: .random)
                 )
             )
         }

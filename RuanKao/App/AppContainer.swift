@@ -10,6 +10,8 @@ final class AppContainer: ObservableObject {
     let aiStudyService: AIStudyServiceProtocol
     let focusSessionStore: FocusSessionStore
     let recentActivityStore: RecentActivityStore
+    let practiceSessionStore: PracticeSessionStore
+    let studyDataStore: StudyDataStore
     @Published private(set) var isPrepared = false
     @Published private(set) var isPreparing = false
     @Published var preparationError: String?
@@ -22,6 +24,8 @@ final class AppContainer: ObservableObject {
         aiStudyService: AIStudyServiceProtocol,
         focusSessionStore: FocusSessionStore,
         recentActivityStore: RecentActivityStore,
+        practiceSessionStore: PracticeSessionStore,
+        studyDataStore: StudyDataStore,
         isPrepared: Bool = false
     ) {
         self.database = database
@@ -31,6 +35,8 @@ final class AppContainer: ObservableObject {
         self.aiStudyService = aiStudyService
         self.focusSessionStore = focusSessionStore
         self.recentActivityStore = recentActivityStore
+        self.practiceSessionStore = practiceSessionStore
+        self.studyDataStore = studyDataStore
         self.isPrepared = isPrepared
     }
 
@@ -47,7 +53,9 @@ final class AppContainer: ObservableObject {
         surfacesErrorsInUI: Bool
     ) {
         let repository = questionRepository
-        let work = { [weak self] in
+        let priority = taskPriority(for: qos)
+
+        Task.detached(priority: priority) { [weak self] in
             do {
                 try repository.seedIfNeeded()
 
@@ -68,8 +76,23 @@ final class AppContainer: ObservableObject {
                 }
             }
         }
+    }
 
-        DispatchQueue.global(qos: qos).async(execute: work)
+    private func taskPriority(for qos: DispatchQoS.QoSClass) -> TaskPriority {
+        switch qos {
+        case .userInteractive:
+            return .high
+        case .userInitiated:
+            return .userInitiated
+        case .default:
+            return .medium
+        case .utility:
+            return .low
+        case .background:
+            return .background
+        default:
+            return .medium
+        }
     }
 
     static func bootstrap() -> AppContainer {
@@ -106,6 +129,8 @@ final class AppContainer: ObservableObject {
             )
             let focusSessionStore = FocusSessionStore()
             let recentActivityStore = RecentActivityStore()
+            let practiceSessionStore = PracticeSessionStore()
+            let studyDataStore = StudyDataStore()
             let hasQuestionBank = (try? questionRepository.hasQuestionBank()) ?? false
 
             let container = AppContainer(
@@ -116,12 +141,66 @@ final class AppContainer: ObservableObject {
                 aiStudyService: aiStudyService,
                 focusSessionStore: focusSessionStore,
                 recentActivityStore: recentActivityStore,
+                practiceSessionStore: practiceSessionStore,
+                studyDataStore: studyDataStore,
                 isPrepared: hasQuestionBank
             )
             return container
         } catch {
             fatalError("Failed to bootstrap application: \(error)")
         }
+    }
+}
+
+@MainActor
+final class StudyDataStore: ObservableObject {
+    @Published private(set) var revision = 0
+
+    func markChanged() {
+        revision += 1
+    }
+}
+
+@MainActor
+final class PracticeSessionStore: ObservableObject {
+    @Published private(set) var snapshot: PracticeSessionSnapshot?
+
+    private let defaults: UserDefaults
+    private let key = "active_practice_session_v1"
+    private let encoder = JSONEncoder()
+    private let decoder = JSONDecoder()
+
+    init(defaults: UserDefaults = .standard) {
+        self.defaults = defaults
+
+        if let data = defaults.data(forKey: key),
+           let snapshot = try? decoder.decode(PracticeSessionSnapshot.self, from: data),
+           snapshot.isResumable {
+            self.snapshot = snapshot
+        } else {
+            self.snapshot = nil
+        }
+    }
+
+    var resumableSession: PracticeSessionSnapshot? {
+        snapshot?.isResumable == true ? snapshot : nil
+    }
+
+    func save(_ snapshot: PracticeSessionSnapshot) {
+        guard snapshot.isResumable else {
+            clear()
+            return
+        }
+
+        self.snapshot = snapshot
+        if let data = try? encoder.encode(snapshot) {
+            defaults.set(data, forKey: key)
+        }
+    }
+
+    func clear() {
+        snapshot = nil
+        defaults.removeObject(forKey: key)
     }
 }
 
