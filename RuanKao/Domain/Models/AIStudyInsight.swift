@@ -1,6 +1,6 @@
 import Foundation
 
-enum AIInsightStyle: String, Identifiable, CaseIterable {
+enum AIInsightStyle: String, Identifiable, CaseIterable, Hashable, Codable {
     case explanation
     case similarQuestion
     case essayOutline
@@ -30,7 +30,7 @@ enum AIInsightStyle: String, Identifiable, CaseIterable {
     }
 }
 
-struct AIStudyInsight: Hashable {
+struct AIStudyInsight: Hashable, Codable {
     let title: String
     let summary: String
     let highlights: [String]

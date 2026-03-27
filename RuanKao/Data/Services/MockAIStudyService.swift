@@ -1,6 +1,6 @@
 import Foundation
 
-final class MockAIStudyService: AIStudyServiceProtocol {
+final class MockAIStudyService: AIStudyServiceProtocol, @unchecked Sendable {
     func generateInsight(for question: Question, style: AIInsightStyle) async throws -> AIStudyInsight {
         try await Task.sleep(for: .milliseconds(450))
 

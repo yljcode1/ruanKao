@@ -2,12 +2,19 @@ import SwiftUI
 
 struct WrongBookView: View {
     @StateObject private var viewModel: WrongBookViewModel
+    @ObservedObject private var studyDataStore: StudyDataStore
     private let container: AppContainer
 
     init(container: AppContainer) {
         self.container = container
+        _studyDataStore = ObservedObject(wrappedValue: container.studyDataStore)
         _viewModel = StateObject(
-            wrappedValue: WrongBookViewModel(questionRepository: container.questionRepository)
+            wrappedValue: WrongBookViewModel(
+                questionRepository: container.questionRepository,
+                dataDidChange: {
+                    container.studyDataStore.markChanged()
+                }
+            )
         )
     }
 
@@ -25,15 +32,22 @@ struct WrongBookView: View {
         .navigationTitle("错题本")
         .appScreenChrome()
         .task {
-            viewModel.load()
+            viewModel.loadIfNeeded()
         }
         .refreshable {
-            viewModel.load()
+            viewModel.load(force: true)
+        }
+        .onReceive(studyDataStore.$revision.dropFirst()) { _ in
+            viewModel.load(force: true)
         }
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
                 NavigationLink {
-                    PracticeView(container: container, preferredMode: .wrongOnly)
+                    PracticeView(
+                        container: container,
+                        preferredMode: .wrongOnly,
+                        initialSearchText: viewModel.selectedKnowledgePoint
+                    )
                 } label: {
                     Text("开始重练")
                         .font(.subheadline.weight(.semibold))
@@ -50,7 +64,7 @@ struct WrongBookView: View {
                         .font(.title2.weight(.bold))
                         .foregroundStyle(AppTheme.Colors.textPrimary)
 
-                    Text("自动收集、按知识点聚类、学会后标记掌握，让错题本越来越轻。")
+                    Text("自动收集、按知识点聚焦、按危险程度排序，把最值得重练的题顶出来。")
                         .font(.subheadline)
                         .foregroundStyle(AppTheme.Colors.textSecondary)
                 }
@@ -74,31 +88,47 @@ struct WrongBookView: View {
     }
 
     private var filterSection: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            SectionHeader("复习视图", subtitle: "按掌握状态快速切换")
+        VStack(alignment: .leading, spacing: 14) {
+            SectionHeader("复习视图", subtitle: "按掌握状态、知识点和危险程度快速切换")
 
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 10) {
                     ForEach(WrongFilter.allCases) { filter in
-                        Button {
+                        filterChip(
+                            title: "\(filter.title) (\(count(for: filter)))",
+                            isActive: viewModel.filter == filter
+                        ) {
                             viewModel.filter = filter
-                        } label: {
-                            HStack(spacing: 8) {
-                                Text(filter.title)
-                                Text("(\(count(for: filter)))")
-                            }
-                            .font(.subheadline.weight(.semibold))
-                            .foregroundStyle(viewModel.filter == filter ? Color.white : AppTheme.Colors.textPrimary)
-                            .padding(.horizontal, 14)
-                            .padding(.vertical, 10)
-                            .background(viewModel.filter == filter ? AppTheme.Colors.primary : AppTheme.Colors.elevatedCard)
-                            .overlay {
-                                Capsule()
-                                    .stroke(viewModel.filter == filter ? AppTheme.Colors.primary : AppTheme.Colors.stroke)
-                            }
-                            .clipShape(Capsule())
                         }
-                        .buttonStyle(.plain)
+                    }
+                }
+            }
+
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 10) {
+                    ForEach(WrongSortMode.allCases) { mode in
+                        filterChip(title: mode.title, isActive: viewModel.sortMode == mode) {
+                            viewModel.sortMode = mode
+                        }
+                    }
+                }
+            }
+
+            if !viewModel.knowledgePointOptions.isEmpty {
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 10) {
+                        filterChip(title: "全部知识点", isActive: viewModel.selectedKnowledgePoint == nil) {
+                            viewModel.selectKnowledgePoint(nil)
+                        }
+
+                        ForEach(viewModel.knowledgePointOptions, id: \.self) { knowledgePoint in
+                            filterChip(
+                                title: knowledgePoint,
+                                isActive: viewModel.selectedKnowledgePoint == knowledgePoint
+                            ) {
+                                viewModel.selectKnowledgePoint(knowledgePoint)
+                            }
+                        }
                     }
                 }
             }
@@ -107,7 +137,16 @@ struct WrongBookView: View {
 
     @ViewBuilder
     private var contentSection: some View {
-        if let errorMessage = viewModel.errorMessage {
+        if viewModel.isLoading && viewModel.items.isEmpty {
+            StatePanel(
+                title: "正在加载错题本",
+                message: "正在按知识点整理最近做错的题目。",
+                icon: "clock.arrow.circlepath"
+            ) {
+                ProgressView()
+                    .tint(AppTheme.Colors.primary)
+            }
+        } else if let errorMessage = viewModel.errorMessage {
             StatePanel(
                 title: "错题本加载失败",
                 message: errorMessage,
@@ -115,90 +154,145 @@ struct WrongBookView: View {
                 tint: AppTheme.Colors.danger
             ) {
                 Button("重新加载") {
-                    viewModel.load()
+                    viewModel.load(force: true)
                 }
                 .appButton()
             }
-        } else if viewModel.groupedItems.isEmpty {
+        } else if viewModel.displaySections.allSatisfy(\.items.isEmpty) {
             StatePanel(
-                title: "暂无错题",
-                message: "继续保持，答错的题会自动沉淀到这里，后面可以集中回看。",
+                title: "当前筛选下暂无错题",
+                message: "可以切换排序方式、放宽掌握状态筛选，或者继续去做题。",
                 icon: "checkmark.circle"
             ) {
-                NavigationLink {
-                    PracticeView(container: container, preferredMode: .sequential)
-                } label: {
-                    Text("去练几题")
-                        .font(.subheadline.weight(.semibold))
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 14)
+                Button("查看全部错题") {
+                    viewModel.filter = .all
+                    viewModel.selectKnowledgePoint(nil)
                 }
                 .appButton()
             }
         } else {
-            VStack(alignment: .leading, spacing: AppTheme.Metrics.listSectionSpacing) {
-                ForEach(viewModel.groupedItems, id: \.0) { group in
-                    VStack(alignment: .leading, spacing: 14) {
-                        HStack {
-                            PillTag(title: group.0, icon: "tag.fill", tint: AppTheme.Colors.secondary)
-                            Spacer()
-                            Text("\(group.1.count) 题")
-                                .font(.footnote.weight(.medium))
-                                .foregroundStyle(AppTheme.Colors.textSecondary)
-                        }
-
-                        ForEach(group.1) { item in
-                            PrimaryCard(style: item.isMastered ? .subtle : .elevated) {
-                                VStack(alignment: .leading, spacing: 16) {
-                                    HStack(alignment: .top) {
-                                        VStack(alignment: .leading, spacing: 8) {
-                                            HStack(spacing: 8) {
-                                                PillTag(
-                                                    title: item.question.type.title,
-                                                    icon: "doc.text",
-                                                    tint: AppTheme.Colors.secondary
-                                                )
-                                                PillTag(
-                                                    title: item.question.sourceBadgeTitle,
-                                                    icon: item.question.sourceBadgeIcon,
-                                                    tint: item.question.isAdapted ? AppTheme.Colors.accent : AppTheme.Colors.primary
-                                                )
-                                                PillTag(
-                                                    title: item.isMastered ? "已掌握" : "待重练",
-                                                    icon: item.isMastered ? "checkmark" : "exclamationmark",
-                                                    tint: AppTheme.Colors.secondary
-                                                )
-                                            }
-
-                                            Text(item.question.stem)
-                                                .font(.headline)
-                                                .foregroundStyle(AppTheme.Colors.textPrimary)
-                                                .lineLimit(3)
-                                        }
-
-                                        Spacer(minLength: 12)
-                                    }
-
-                                    HStack {
-                                        infoItem(title: "错误次数", value: "\(item.wrongCount)")
-                                        infoItem(
-                                            title: "最近错误",
-                                            value: item.lastWrongAt.formatted(date: .abbreviated, time: .omitted)
-                                        )
-                                    }
-
-                                    Button(item.isMastered ? "取消掌握" : "标记掌握") {
-                                        viewModel.toggleMastered(item)
-                                    }
-                                    .appButton(item.isMastered ? .secondary : .primary)
-                                }
-                                .frame(minHeight: AppTheme.Metrics.listRowMinHeight, alignment: .topLeading)
-                            }
-                        }
+            LazyVStack(alignment: .leading, spacing: AppTheme.Metrics.listSectionSpacing) {
+                ForEach(viewModel.displaySections) { section in
+                    if !section.items.isEmpty {
+                        wrongSection(section)
                     }
                 }
             }
         }
+    }
+
+    private func wrongSection(_ section: WrongQuestionSection) -> some View {
+        VStack(alignment: .leading, spacing: 14) {
+            HStack(alignment: .center) {
+                VStack(alignment: .leading, spacing: 4) {
+                    HStack {
+                        PillTag(title: section.title, icon: "tag.fill", tint: AppTheme.Colors.secondary)
+                        Text("\(section.items.count) 题")
+                            .font(.footnote.weight(.medium))
+                            .foregroundStyle(AppTheme.Colors.textSecondary)
+                    }
+
+                    if let subtitle = section.subtitle {
+                        Text(subtitle)
+                            .font(.footnote)
+                            .foregroundStyle(AppTheme.Colors.textSecondary)
+                    }
+                }
+
+                Spacer()
+
+                NavigationLink {
+                    PracticeView(
+                        container: container,
+                        preferredMode: .wrongOnly,
+                        initialSearchText: section.title == "最近连错" || section.title == "高危错题" ? viewModel.selectedKnowledgePoint : section.title
+                    )
+                } label: {
+                    Text("针对重练")
+                        .font(.footnote.weight(.semibold))
+                        .foregroundStyle(AppTheme.Colors.primary)
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 8)
+                        .background(AppTheme.Colors.card)
+                        .overlay {
+                            Capsule()
+                                .stroke(AppTheme.Colors.stroke)
+                        }
+                        .clipShape(Capsule())
+                }
+                .buttonStyle(.plain)
+            }
+
+            ForEach(section.items) { item in
+                PrimaryCard(style: item.isMastered ? .subtle : .elevated) {
+                    VStack(alignment: .leading, spacing: 16) {
+                        HStack(alignment: .top) {
+                            VStack(alignment: .leading, spacing: 8) {
+                                HStack(spacing: 8) {
+                                    PillTag(
+                                        title: item.question.type.title,
+                                        icon: "doc.text",
+                                        tint: AppTheme.Colors.secondary
+                                    )
+                                    PillTag(
+                                        title: item.question.sourceBadgeTitle,
+                                        icon: item.question.sourceBadgeIcon,
+                                        tint: item.question.isAdapted ? AppTheme.Colors.accent : AppTheme.Colors.primary
+                                    )
+                                    PillTag(
+                                        title: item.isMastered ? "已掌握" : "待重练",
+                                        icon: item.isMastered ? "checkmark" : "exclamationmark",
+                                        tint: item.isMastered ? AppTheme.Colors.secondary : AppTheme.Colors.primary,
+                                        filled: !item.isMastered
+                                    )
+                                    if item.wrongCount >= 3 {
+                                        PillTag(title: "高危", icon: "flame", tint: AppTheme.Colors.primary)
+                                    }
+                                }
+
+                                Text(item.question.stem)
+                                    .font(.headline)
+                                    .foregroundStyle(AppTheme.Colors.textPrimary)
+                                    .lineLimit(3)
+                            }
+
+                            Spacer(minLength: 12)
+                        }
+
+                        HStack {
+                            infoItem(title: "错误次数", value: "\(item.wrongCount)")
+                            infoItem(
+                                title: "最近错误",
+                                value: item.lastWrongAt.formatted(date: .abbreviated, time: .omitted)
+                            )
+                        }
+
+                        Button(item.isMastered ? "取消掌握" : "标记掌握") {
+                            viewModel.toggleMastered(item)
+                        }
+                        .appButton(item.isMastered ? .secondary : .primary)
+                    }
+                    .frame(minHeight: AppTheme.Metrics.listRowMinHeight, alignment: .topLeading)
+                }
+            }
+        }
+    }
+
+    private func filterChip(title: String, isActive: Bool, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Text(title)
+                .font(.subheadline.weight(.semibold))
+                .foregroundStyle(isActive ? Color.white : AppTheme.Colors.textPrimary)
+                .padding(.horizontal, 14)
+                .padding(.vertical, 10)
+                .background(isActive ? AppTheme.Colors.primary : AppTheme.Colors.elevatedCard)
+                .overlay {
+                    Capsule()
+                        .stroke(isActive ? AppTheme.Colors.primary : AppTheme.Colors.stroke)
+                }
+                .clipShape(Capsule())
+        }
+        .buttonStyle(.plain)
     }
 
     private func summaryCapsule(title: String, value: String) -> some View {
