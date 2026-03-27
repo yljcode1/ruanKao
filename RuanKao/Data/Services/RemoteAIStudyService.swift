@@ -297,10 +297,17 @@ final class RemoteAIStudyService: AIStudyServiceProtocol {
             throw RemoteAIServiceError.badServerResponse(bodySnippet(from: data))
         }
 
-        return try decodeInsight(
-            from: content,
-            fallbackSource: sourceLabel(for: endpoint, model: resolvedModel)
-        )
+        do {
+            return try decodeInsight(
+                from: content,
+                fallbackSource: sourceLabel(for: endpoint, model: resolvedModel)
+            )
+        } catch {
+            return fallbackInsight(
+                from: content,
+                fallbackSource: sourceLabel(for: endpoint, model: resolvedModel)
+            )
+        }
     }
 
     private func generateViaOpenAICompatibleEndpoint(
@@ -345,10 +352,17 @@ final class RemoteAIStudyService: AIStudyServiceProtocol {
             throw RemoteAIServiceError.badServerResponse(bodySnippet(from: data))
         }
 
-        return try decodeInsight(
-            from: content,
-            fallbackSource: sourceLabel(for: endpoint, model: resolvedModel)
-        )
+        do {
+            return try decodeInsight(
+                from: content,
+                fallbackSource: sourceLabel(for: endpoint, model: resolvedModel)
+            )
+        } catch {
+            return fallbackInsight(
+                from: content,
+                fallbackSource: sourceLabel(for: endpoint, model: resolvedModel)
+            )
+        }
     }
 
     private func performRequest(_ request: URLRequest) async throws -> (Data, URLResponse) {
@@ -415,6 +429,26 @@ final class RemoteAIStudyService: AIStudyServiceProtocol {
         }
 
         return nil
+    }
+
+    private func fallbackInsight(from content: String, fallbackSource: String) -> AIStudyInsight {
+        let cleaned = cleanedPlainText(from: content)
+        let lines = cleaned
+            .components(separatedBy: .newlines)
+            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+            .filter { !$0.isEmpty }
+
+        let title = fallbackTitle(from: lines.first) ?? "AI 解析"
+        let highlights = fallbackHighlights(from: lines)
+        let summary = fallbackSummary(from: cleaned, highlights: highlights)
+
+        return AIStudyInsight(
+            title: title,
+            summary: summary,
+            highlights: highlights,
+            nextAction: "继续查看题目与解析，对照这 3 个要点再复盘一遍。",
+            source: fallbackSource
+        )
     }
 
     private var systemPrompt: String {
@@ -691,6 +725,83 @@ final class RemoteAIStudyService: AIStudyServiceProtocol {
             return object
         }
         return stripped
+    }
+
+    private func cleanedPlainText(from content: String) -> String {
+        stripCodeFence(from: content)
+            .replacingOccurrences(of: "###", with: "")
+            .replacingOccurrences(of: "##", with: "")
+            .replacingOccurrences(of: "#", with: "")
+            .replacingOccurrences(of: "**", with: "")
+            .replacingOccurrences(of: "__", with: "")
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    private func fallbackTitle(from firstLine: String?) -> String? {
+        guard let firstLine else { return nil }
+        let normalized = normalizedBulletLine(firstLine)
+        guard !normalized.isEmpty else { return nil }
+        return String(normalized.prefix(20))
+    }
+
+    private func fallbackSummary(from cleaned: String, highlights: [String]) -> String {
+        let summarySource = cleaned
+            .replacingOccurrences(of: "\n", with: " ")
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+
+        if !summarySource.isEmpty {
+            return String(summarySource.prefix(120))
+        }
+
+        return highlights.joined(separator: "；")
+    }
+
+    private func fallbackHighlights(from lines: [String]) -> [String] {
+        var candidates = lines
+            .map(normalizedBulletLine)
+            .filter { !$0.isEmpty }
+
+        if candidates.count < 3, let combined = lines.first {
+            candidates.append(contentsOf: splitSentences(from: combined))
+        }
+
+        var unique: [String] = []
+        for candidate in candidates {
+            let normalized = String(candidate.prefix(36))
+            if !normalized.isEmpty, !unique.contains(normalized) {
+                unique.append(normalized)
+            }
+            if unique.count == 3 {
+                break
+            }
+        }
+
+        while unique.count < 3 {
+            switch unique.count {
+            case 0:
+                unique.append("先看核心结论")
+            case 1:
+                unique.append("再核对答案依据")
+            default:
+                unique.append("最后复盘易错点")
+            }
+        }
+
+        return unique
+    }
+
+    private func normalizedBulletLine(_ line: String) -> String {
+        line
+            .replacingOccurrences(of: #"^\s*[-*•]+\s*"#, with: "", options: .regularExpression)
+            .replacingOccurrences(of: #"^\s*\d+[\.、]\s*"#, with: "", options: .regularExpression)
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    private func splitSentences(from text: String) -> [String] {
+        text
+            .components(separatedBy: CharacterSet(charactersIn: "。！？；\n"))
+            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+            .filter { !$0.isEmpty }
     }
 
     private func stripCodeFence(from text: String) -> String {
