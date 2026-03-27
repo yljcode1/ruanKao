@@ -4,6 +4,7 @@ struct RemoteAIServiceConfiguration {
     let endpoint: URL?
     let bearerToken: String?
     let model: String?
+    let protocolPreference: AIServiceProtocolPreference
 }
 
 enum RemoteAIServiceError: LocalizedError {
@@ -591,6 +592,17 @@ final class RemoteAIStudyService: AIStudyServiceProtocol {
     }
 
     private func endpointProtocol(for configuration: RemoteAIServiceConfiguration, endpoint: URL) -> EndpointProtocol {
+        switch configuration.protocolPreference {
+        case .responses:
+            return .responses
+        case .chatCompletions:
+            return .openAICompatible
+        case .custom:
+            return .custom
+        case .automatic:
+            break
+        }
+
         let path = endpoint.path.lowercased()
         let hasModel = sanitized(configuration.model) != nil
 

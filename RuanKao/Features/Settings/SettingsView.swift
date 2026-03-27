@@ -6,6 +6,7 @@ struct SettingsView: View {
     @State private var aiEndpoint: String
     @State private var aiToken: String
     @State private var aiModel: String
+    @State private var aiProtocolPreference: AIServiceProtocolPreference
     @State private var aiMessage: String?
     @State private var isAITesting = false
 
@@ -13,6 +14,7 @@ struct SettingsView: View {
         _aiEndpoint = State(initialValue: AppConfiguration.aiServiceEndpointString)
         _aiToken = State(initialValue: AppConfiguration.aiServiceToken ?? "")
         _aiModel = State(initialValue: AppConfiguration.aiServiceModel ?? "")
+        _aiProtocolPreference = State(initialValue: AppConfiguration.aiServiceProtocolPreference)
     }
 
     private var appearanceMode: AppearanceMode {
@@ -184,6 +186,22 @@ struct SettingsView: View {
                     text: $aiModel
                 )
 
+                VStack(alignment: .leading, spacing: 10) {
+                    Text("接口协议")
+                        .font(.footnote.weight(.semibold))
+                        .foregroundStyle(AppTheme.Colors.textSecondary)
+
+                    ForEach(AIServiceProtocolPreference.allCases) { preference in
+                        AIProtocolOptionRow(
+                            title: preference.title,
+                            subtitle: protocolDescription(for: preference),
+                            isSelected: aiProtocolPreference == preference
+                        ) {
+                            aiProtocolPreference = preference
+                        }
+                    }
+                }
+
                 VStack(alignment: .leading, spacing: 6) {
                     Text("当前令牌：\(AppConfiguration.maskedTokenDescription(for: AppConfiguration.aiServiceToken))")
                         .font(.footnote)
@@ -197,7 +215,7 @@ struct SettingsView: View {
                     Text("如果你的中转站走 `chat/completions`，建议填完整接口如 `/v1/chat/completions`；如果走 `responses`，可直接填根地址、`/v1` 或完整 `/v1/responses`。")
                         .font(.footnote)
                         .foregroundStyle(AppTheme.Colors.textSecondary)
-                    Text("点 `测试连接` 时，如果当前模型失败，系统会自动轮询一组常见兼容模型，并把成功的模型回填到输入框。")
+                    Text("如果 `自动识别` 测不通，你可以手动切到 `Responses` 或 `Chat Completions` 再试。点 `测试连接` 时，系统也会自动轮询一组常见兼容模型。")
                         .font(.footnote)
                         .foregroundStyle(AppTheme.Colors.textSecondary)
                 }
@@ -252,6 +270,19 @@ struct SettingsView: View {
         }
     }
 
+    private func protocolDescription(for preference: AIServiceProtocolPreference) -> String {
+        switch preference {
+        case .automatic:
+            return "按地址和模型自动判断协议"
+        case .responses:
+            return "强制走 `/v1/responses`"
+        case .chatCompletions:
+            return "强制走 `/v1/chat/completions`"
+        case .custom:
+            return "请求体固定为 `style + question`"
+        }
+    }
+
     @ViewBuilder
     private func settingsField(
         title: String,
@@ -291,10 +322,16 @@ struct SettingsView: View {
 
     private func saveAISettings() {
         do {
-            try AppConfiguration.saveAIService(endpoint: aiEndpoint, token: aiToken, model: aiModel)
+            try AppConfiguration.saveAIService(
+                endpoint: aiEndpoint,
+                token: aiToken,
+                model: aiModel,
+                protocolPreference: aiProtocolPreference
+            )
             aiEndpoint = AppConfiguration.aiServiceEndpointString
             aiToken = AppConfiguration.aiServiceToken ?? ""
             aiModel = AppConfiguration.aiServiceModel ?? ""
+            aiProtocolPreference = AppConfiguration.aiServiceProtocolPreference
             aiMessage = remoteAIEnabled ? "已保存，下次点击 AI 助手就会联网。" : "已保存为空配置，当前继续使用离线模式。"
         } catch {
             aiMessage = error.localizedDescription
@@ -307,6 +344,7 @@ struct SettingsView: View {
         let endpoint = aiEndpoint.trimmingCharacters(in: .whitespacesAndNewlines)
         let token = aiToken.trimmingCharacters(in: .whitespacesAndNewlines)
         let model = aiModel.trimmingCharacters(in: .whitespacesAndNewlines)
+        let protocolPreference = aiProtocolPreference
 
         isAITesting = true
         aiMessage = "正在测试 AI 连接…"
@@ -315,7 +353,8 @@ struct SettingsView: View {
             do {
                 let modelsToTry = candidateModelsForConnectionTest(
                     endpoint: endpoint,
-                    preferredModel: model.isEmpty ? nil : model
+                    preferredModel: model.isEmpty ? nil : model,
+                    protocolPreference: protocolPreference
                 )
 
                 var attempts: [String] = []
@@ -325,14 +364,15 @@ struct SettingsView: View {
                 for candidateModel in modelsToTry {
                     let candidateLabel = candidateModel ?? "默认模型"
                     await MainActor.run {
-                        self.aiMessage = "正在测试模型：\(candidateLabel)…"
+                        self.aiMessage = "正在测试 \(protocolPreference.title) · \(candidateLabel)…"
                     }
 
                     do {
                         let source = try await runAIConnectionTest(
                             endpoint: endpoint,
                             token: token,
-                            model: candidateModel
+                            model: candidateModel,
+                            protocolPreference: protocolPreference
                         )
                         resolvedSource = source
                         resolvedModel = candidateModel
@@ -376,24 +416,33 @@ struct SettingsView: View {
     private func runAIConnectionTest(
         endpoint: String,
         token: String,
-        model: String?
+        model: String?,
+        protocolPreference: AIServiceProtocolPreference
     ) async throws -> String {
         let service = RemoteAIStudyService(
             configurationProvider: {
                 RemoteAIServiceConfiguration(
                     endpoint: URL(string: endpoint),
                     bearerToken: token.isEmpty ? nil : token,
-                    model: model
+                    model: model,
+                    protocolPreference: protocolPreference
                 )
             }
         )
         return try await service.testConnection()
     }
 
-    private func candidateModelsForConnectionTest(endpoint: String, preferredModel: String?) -> [String?] {
+    private func candidateModelsForConnectionTest(
+        endpoint: String,
+        preferredModel: String?,
+        protocolPreference: AIServiceProtocolPreference
+    ) -> [String?] {
         var candidates: [String?] = [preferredModel]
 
-        guard shouldProbeAlternativeModels(endpoint: endpoint) else {
+        guard shouldProbeAlternativeModels(
+            endpoint: endpoint,
+            protocolPreference: protocolPreference
+        ) else {
             return deduplicatedModels(candidates)
         }
 
@@ -410,7 +459,19 @@ struct SettingsView: View {
         return deduplicatedModels(candidates)
     }
 
-    private func shouldProbeAlternativeModels(endpoint: String) -> Bool {
+    private func shouldProbeAlternativeModels(
+        endpoint: String,
+        protocolPreference: AIServiceProtocolPreference
+    ) -> Bool {
+        switch protocolPreference {
+        case .custom:
+            return false
+        case .responses, .chatCompletions:
+            return true
+        case .automatic:
+            break
+        }
+
         guard let url = URL(string: endpoint) else { return false }
         let host = url.host()?.lowercased() ?? ""
         let path = url.path.lowercased()
@@ -457,6 +518,7 @@ struct SettingsView: View {
             aiEndpoint = AppConfiguration.aiServiceEndpointString
             aiToken = AppConfiguration.aiServiceToken ?? ""
             aiModel = AppConfiguration.aiServiceModel ?? ""
+            aiProtocolPreference = AppConfiguration.aiServiceProtocolPreference
             aiMessage = AppConfiguration.isRemoteAIEnabled ? "已恢复到内置远程配置。" : "已切回离线模式。"
         } catch {
             aiMessage = error.localizedDescription
@@ -540,5 +602,41 @@ private struct SettingsInfoRow: View {
                 .stroke(AppTheme.Colors.stroke)
         }
         .clipShape(RoundedRectangle(cornerRadius: AppTheme.Metrics.controlRadius, style: .continuous))
+    }
+}
+
+private struct AIProtocolOptionRow: View {
+    let title: String
+    let subtitle: String
+    let isSelected: Bool
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: 12) {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(title)
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(AppTheme.Colors.textPrimary)
+                    Text(subtitle)
+                        .font(.footnote)
+                        .foregroundStyle(AppTheme.Colors.textSecondary)
+                }
+
+                Spacer()
+
+                Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
+                    .foregroundStyle(isSelected ? AppTheme.Colors.primary : AppTheme.Colors.textTertiary)
+            }
+            .padding(14)
+            .background(isSelected ? AppTheme.Colors.primary.opacity(0.04) : AppTheme.Colors.card)
+            .overlay {
+                RoundedRectangle(cornerRadius: AppTheme.Metrics.controlRadius, style: .continuous)
+                    .stroke(isSelected ? AppTheme.Colors.primary.opacity(0.18) : AppTheme.Colors.stroke)
+            }
+            .clipShape(RoundedRectangle(cornerRadius: AppTheme.Metrics.controlRadius, style: .continuous))
+            .animation(.easeInOut(duration: 0.18), value: isSelected)
+        }
+        .buttonStyle(.plain)
     }
 }

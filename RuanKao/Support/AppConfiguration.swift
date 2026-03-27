@@ -1,9 +1,32 @@
 import Foundation
 
+enum AIServiceProtocolPreference: String, CaseIterable, Identifiable {
+    case automatic
+    case responses
+    case chatCompletions
+    case custom
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .automatic:
+            return "自动识别"
+        case .responses:
+            return "Responses"
+        case .chatCompletions:
+            return "Chat Completions"
+        case .custom:
+            return "自定义接口"
+        }
+    }
+}
+
 enum AppConfiguration {
     private static let aiServiceEndpointKey = "ai_service_endpoint"
     private static let aiServiceTokenKey = "ai_service_token"
     private static let aiServiceModelKey = "ai_service_model"
+    private static let aiServiceProtocolKey = "ai_service_protocol"
     private static let keychain = KeychainStore(
         service: Bundle.main.bundleIdentifier ?? "com.codexdemo.ruankao"
     )
@@ -34,11 +57,25 @@ enum AppConfiguration {
         return sanitized(Bundle.main.object(forInfoDictionaryKey: "AIServiceModel") as? String)
     }
 
+    static var aiServiceProtocolPreference: AIServiceProtocolPreference {
+        guard let rawValue = sanitized(UserDefaults.standard.string(forKey: aiServiceProtocolKey)),
+              let preference = AIServiceProtocolPreference(rawValue: rawValue)
+        else {
+            return .automatic
+        }
+        return preference
+    }
+
     static var isRemoteAIEnabled: Bool {
         aiServiceEndpoint != nil
     }
 
-    static func saveAIService(endpoint: String, token: String, model: String) throws {
+    static func saveAIService(
+        endpoint: String,
+        token: String,
+        model: String,
+        protocolPreference: AIServiceProtocolPreference
+    ) throws {
         let sanitizedEndpoint = sanitized(endpoint)
         let sanitizedToken = sanitized(token)
         let sanitizedModel = sanitized(model)
@@ -60,11 +97,14 @@ enum AppConfiguration {
         } else {
             UserDefaults.standard.removeObject(forKey: aiServiceModelKey)
         }
+
+        UserDefaults.standard.set(protocolPreference.rawValue, forKey: aiServiceProtocolKey)
     }
 
     static func resetAIServiceOverrides() throws {
         UserDefaults.standard.removeObject(forKey: aiServiceEndpointKey)
         UserDefaults.standard.removeObject(forKey: aiServiceModelKey)
+        UserDefaults.standard.removeObject(forKey: aiServiceProtocolKey)
         try keychain.removeValue(forKey: aiServiceTokenKey)
     }
 
