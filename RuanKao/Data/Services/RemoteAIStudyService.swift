@@ -86,8 +86,27 @@ final class RemoteAIStudyService: AIStudyServiceProtocol {
     }
 
     func generateInsight(for question: Question, style: AIInsightStyle) async throws -> AIStudyInsight {
-        let configuration = configurationProvider()
+        try await generateInsight(
+            for: question,
+            style: style,
+            configuration: configurationProvider()
+        )
+    }
 
+    func testConnection() async throws -> String {
+        let insight = try await generateInsight(
+            for: Self.testQuestion,
+            style: .explanation,
+            configuration: configurationProvider()
+        )
+        return insight.source
+    }
+
+    private func generateInsight(
+        for question: Question,
+        style: AIInsightStyle,
+        configuration: RemoteAIServiceConfiguration
+    ) async throws -> AIStudyInsight {
         guard let endpoint = configuration.endpoint else {
             throw RemoteAIServiceError.notConfigured
         }
@@ -109,6 +128,26 @@ final class RemoteAIStudyService: AIStudyServiceProtocol {
                 style: style
             )
         }
+    }
+
+    private static var testQuestion: Question {
+        Question(
+            id: -1,
+            year: 2026,
+            stage: "测试连接",
+            type: .singleChoice,
+            category: "AI 联通性",
+            knowledgePoints: ["接口配置", "鉴权", "连通性"],
+            stem: "这是一个用于检测 AI 接口是否可用的测试题。",
+            options: [
+                .init(label: "A", content: "连通"),
+                .init(label: "B", content: "未连通")
+            ],
+            correctAnswers: ["A"],
+            analysis: "如果能返回结构化讲解，说明当前 AI 接口、模型和令牌均可用。",
+            score: 1,
+            estimatedMinutes: 1
+        )
     }
 
     private func generateViaCustomEndpoint(

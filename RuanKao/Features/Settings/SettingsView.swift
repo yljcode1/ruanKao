@@ -7,6 +7,7 @@ struct SettingsView: View {
     @State private var aiToken: String
     @State private var aiModel: String
     @State private var aiMessage: String?
+    @State private var isAITesting = false
 
     init() {
         _aiEndpoint = State(initialValue: AppConfiguration.aiServiceEndpointString)
@@ -201,6 +202,16 @@ struct SettingsView: View {
                         .foregroundStyle(remoteAIEnabled ? AppTheme.Colors.primary : AppTheme.Colors.textSecondary)
                 }
 
+                if isAITesting {
+                    HStack(spacing: 8) {
+                        ProgressView()
+                            .controlSize(.small)
+                        Text("正在测试 AI 连接…")
+                            .font(.footnote)
+                            .foregroundStyle(AppTheme.Colors.textSecondary)
+                    }
+                }
+
                 HStack(spacing: 12) {
                     Button("保存配置") {
                         saveAISettings()
@@ -208,12 +219,18 @@ struct SettingsView: View {
                     .appButton()
                     .frame(maxWidth: .infinity)
 
-                    Button("恢复离线") {
-                        resetAISettings()
+                    Button("测试连接") {
+                        testAIConnection()
                     }
                     .appButton(.secondary)
                     .frame(maxWidth: .infinity)
                 }
+
+                Button("恢复离线") {
+                    resetAISettings()
+                }
+                .appButton(.secondary)
+                .frame(maxWidth: .infinity)
             }
         }
     }
@@ -275,6 +292,42 @@ struct SettingsView: View {
             aiMessage = remoteAIEnabled ? "已保存，下次点击 AI 助手就会联网。" : "已保存为空配置，当前继续使用离线模式。"
         } catch {
             aiMessage = error.localizedDescription
+        }
+    }
+
+    private func testAIConnection() {
+        guard !isAITesting else { return }
+
+        let endpoint = aiEndpoint.trimmingCharacters(in: .whitespacesAndNewlines)
+        let token = aiToken.trimmingCharacters(in: .whitespacesAndNewlines)
+        let model = aiModel.trimmingCharacters(in: .whitespacesAndNewlines)
+
+        isAITesting = true
+        aiMessage = nil
+
+        Task {
+            let service = RemoteAIStudyService(
+                configurationProvider: {
+                    RemoteAIServiceConfiguration(
+                        endpoint: URL(string: endpoint),
+                        bearerToken: token.isEmpty ? nil : token,
+                        model: model.isEmpty ? nil : model
+                    )
+                }
+            )
+
+            do {
+                let source = try await service.testConnection()
+                await MainActor.run {
+                    self.isAITesting = false
+                    self.aiMessage = "测试成功：已连接到 \(source)。如果没问题，再点“保存配置”。"
+                }
+            } catch {
+                await MainActor.run {
+                    self.isAITesting = false
+                    self.aiMessage = error.localizedDescription
+                }
+            }
         }
     }
 
