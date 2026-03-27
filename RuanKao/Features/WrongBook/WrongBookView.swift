@@ -159,6 +159,11 @@ struct WrongBookView: View {
                                                     tint: AppTheme.Colors.secondary
                                                 )
                                                 PillTag(
+                                                    title: item.question.sourceBadgeTitle,
+                                                    icon: item.question.sourceBadgeIcon,
+                                                    tint: item.question.isAdapted ? AppTheme.Colors.accent : AppTheme.Colors.primary
+                                                )
+                                                PillTag(
                                                     title: item.isMastered ? "已掌握" : "待重练",
                                                     icon: item.isMastered ? "checkmark" : "exclamationmark",
                                                     tint: AppTheme.Colors.secondary

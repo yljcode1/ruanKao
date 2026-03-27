@@ -29,6 +29,29 @@ struct QuestionOption: Codable, Hashable, Identifiable {
     }
 }
 
+enum QuestionSourceKind: String, Codable, Hashable {
+    case official
+    case adapted
+
+    var title: String {
+        switch self {
+        case .official:
+            return "真题"
+        case .adapted:
+            return "改编题"
+        }
+    }
+
+    var icon: String {
+        switch self {
+        case .official:
+            return "checkmark.seal"
+        case .adapted:
+            return "wand.and.stars"
+        }
+    }
+}
+
 struct Question: Codable, Hashable, Identifiable {
     let id: Int64
     let year: Int
@@ -53,6 +76,23 @@ struct Question: Codable, Hashable, Identifiable {
 
     var isObjective: Bool {
         type == .singleChoice
+    }
+
+    var sourceKind: QuestionSourceKind {
+        let adaptedKeywords = ["改编", "补充", "扩容", "芝士", "专题"]
+        return adaptedKeywords.contains(where: stage.contains) ? .adapted : .official
+    }
+
+    var isAdapted: Bool {
+        sourceKind == .adapted
+    }
+
+    var sourceBadgeTitle: String {
+        sourceKind.title
+    }
+
+    var sourceBadgeIcon: String {
+        sourceKind.icon
     }
 }
 

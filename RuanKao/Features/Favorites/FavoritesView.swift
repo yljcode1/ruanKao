@@ -79,12 +79,17 @@ struct FavoritesView: View {
             }
         } else {
             VStack(alignment: .leading, spacing: AppTheme.Metrics.listItemSpacing) {
-                ForEach(viewModel.questions) { question in
+                ForEach(viewModel.questions, id: \Question.id) { (question: Question) in
                     PrimaryCard(style: .subtle) {
                         VStack(alignment: .leading, spacing: 16) {
                             HStack {
                                 HStack(spacing: 8) {
                                     PillTag(title: question.type.title, icon: "doc.text", tint: AppTheme.Colors.secondary)
+                                    PillTag(
+                                        title: question.sourceBadgeTitle,
+                                        icon: question.sourceBadgeIcon,
+                                        tint: question.isAdapted ? AppTheme.Colors.accent : AppTheme.Colors.primary
+                                    )
                                     PillTag(title: question.category, icon: "folder", tint: AppTheme.Colors.primary)
                                 }
                                 Spacer()

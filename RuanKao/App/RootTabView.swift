@@ -45,6 +45,22 @@ struct RootTabView: View {
     }
 
     var body: some View {
+        Group {
+            if container.isPrepared {
+                tabContent
+            } else {
+                startupView
+            }
+        }
+        .onChange(of: scenePhase) { _, newPhase in
+            focusSessionStore.handleScenePhase(newPhase)
+        }
+        .fullScreenCover(isPresented: focusOverlayBinding) {
+            FocusSessionExperienceView(container: container, store: focusSessionStore)
+        }
+    }
+
+    private var tabContent: some View {
         TabView(selection: $selection) {
             NavigationStack {
                 DashboardView(container: container)
@@ -89,11 +105,42 @@ struct RootTabView: View {
         .tint(AppTheme.Colors.primary)
         .toolbarBackground(Color.white, for: .tabBar)
         .toolbarBackground(.visible, for: .tabBar)
-        .onChange(of: scenePhase) { _, newPhase in
-            focusSessionStore.handleScenePhase(newPhase)
-        }
-        .fullScreenCover(isPresented: focusOverlayBinding) {
-            FocusSessionExperienceView(container: container, store: focusSessionStore)
+    }
+
+    private var startupView: some View {
+        ZStack {
+            AppTheme.Colors.background.ignoresSafeArea()
+
+            VStack(spacing: 20) {
+                Image(systemName: "books.vertical.fill")
+                    .font(.system(size: 32, weight: .semibold))
+                    .foregroundStyle(AppTheme.Colors.primary)
+                    .frame(width: 72, height: 72)
+                    .background(AppTheme.Colors.card)
+                    .clipShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
+
+                VStack(spacing: 8) {
+                    Text("正在准备题库")
+                        .font(.title3.weight(.bold))
+                        .foregroundStyle(AppTheme.Colors.textPrimary)
+
+                    Text(container.preparationError ?? "首次打开或题库更新时会同步题目，完成后自动进入首页。")
+                        .font(.subheadline)
+                        .multilineTextAlignment(.center)
+                        .foregroundStyle(AppTheme.Colors.textSecondary)
+                }
+
+                if container.preparationError == nil {
+                    ProgressView()
+                        .tint(AppTheme.Colors.primary)
+                } else {
+                    Button("重新尝试") {
+                        container.prepareIfNeeded()
+                    }
+                    .appButton()
+                }
+            }
+            .padding(28)
         }
     }
 
