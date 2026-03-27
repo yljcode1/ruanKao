@@ -20,16 +20,91 @@ enum RemoteAIServiceError: LocalizedError {
         case let .requestFailed(message):
             return "AI 请求失败：\(message)"
         case let .httpStatus(statusCode, body):
-            if let body, !body.isEmpty {
-                return "AI 服务返回异常（HTTP \(statusCode)）：\(body)"
-            }
-            return "AI 服务返回异常（HTTP \(statusCode)）。"
+            return Self.httpStatusDescription(statusCode: statusCode, body: body)
         case let .badServerResponse(body):
-            if let body, !body.isEmpty {
-                return "AI 服务返回了无法识别的结果：\(body)"
-            }
-            return "AI 服务返回了无法识别的结果。"
+            return Self.badServerResponseDescription(body: body)
         }
+    }
+
+    private static func httpStatusDescription(statusCode: Int, body: String?) -> String {
+        let snippet = normalizedSnippet(from: body)
+
+        switch statusCode {
+        case 401:
+            if let snippet,
+               snippet.localizedCaseInsensitiveContains("api_key_required")
+                || snippet.localizedCaseInsensitiveContains("api key is required") {
+                return "AI 鉴权失败（HTTP 401）：当前中转站要求在请求头里携带 API Key，请确认令牌已填写正确并重新保存。"
+            }
+
+            if let snippet {
+                return "AI 鉴权失败（HTTP 401）：\(snippet)"
+            }
+
+            return "AI 鉴权失败（HTTP 401）。"
+
+        case 404:
+            if let snippet {
+                return "AI 接口地址不存在（HTTP 404）：请检查地址是否应填写为 `/v1/responses` 或 `/v1/chat/completions`。返回：\(snippet)"
+            }
+
+            return "AI 接口地址不存在（HTTP 404）：请检查地址是否填写正确。"
+
+        case 502:
+            if looksLikeHTML(snippet) {
+                return "AI 服务异常（HTTP 502）：App 已经连到中转站，但中转站转发模型失败，或服务端临时故障。若切换 `Responses` 和 `Chat Completions` 都失败，基本就是中转站问题。"
+            }
+
+            if let snippet {
+                return "AI 服务异常（HTTP 502）：\(snippet)"
+            }
+
+            return "AI 服务异常（HTTP 502）：通常表示中转站后端或网关出错。"
+
+        default:
+            if looksLikeHTML(snippet) {
+                return "AI 服务返回了网页 HTML（HTTP \(statusCode)），不是接口 JSON。通常是地址填成了站点页面，或中转站把请求导向了网页。"
+            }
+
+            if let snippet {
+                return "AI 服务返回异常（HTTP \(statusCode)）：\(snippet)"
+            }
+
+            return "AI 服务返回异常（HTTP \(statusCode)）。"
+        }
+    }
+
+    private static func badServerResponseDescription(body: String?) -> String {
+        let snippet = normalizedSnippet(from: body)
+
+        if looksLikeHTML(snippet) {
+            return "AI 服务返回了网页 HTML，不是接口 JSON。通常是接口地址填错，或者中转站直接返回了站点页面。"
+        }
+
+        if let snippet {
+            return "AI 服务返回了无法识别的结果：\(snippet)"
+        }
+
+        return "AI 服务返回了无法识别的结果。"
+    }
+
+    private static func normalizedSnippet(from body: String?) -> String? {
+        guard let body else { return nil }
+
+        let normalized = body
+            .replacingOccurrences(of: #"\s+"#, with: " ", options: .regularExpression)
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+
+        guard !normalized.isEmpty else { return nil }
+        return normalized
+    }
+
+    private static func looksLikeHTML(_ body: String?) -> Bool {
+        guard let normalized = normalizedSnippet(from: body)?.lowercased() else {
+            return false
+        }
+
+        return normalized.contains("<!doctype html") || normalized.contains("<html")
     }
 }
 
@@ -38,6 +113,12 @@ final class RemoteAIStudyService: AIStudyServiceProtocol {
         case custom
         case responses
         case openAICompatible
+    }
+
+    private struct ProviderRequestTarget {
+        let requestModel: String
+        let displayModel: String
+        let headers: [String: String]
     }
 
     private struct RequestBody: Encodable {
@@ -59,9 +140,14 @@ final class RemoteAIStudyService: AIStudyServiceProtocol {
             let content: String
         }
 
+        struct ExtraBody: Encodable {
+            let reasoning_split: Bool
+        }
+
         let model: String
         let messages: [Message]
         let temperature: Double
+        let extra_body: ExtraBody?
     }
 
     private struct OpenAIChatResponse: Decodable {
@@ -273,11 +359,11 @@ final class RemoteAIStudyService: AIStudyServiceProtocol {
         style: AIInsightStyle
     ) async throws -> AIStudyInsight {
         let resolvedEndpoint = resolvedResponsesEndpoint(from: endpoint)
-        let resolvedModel = try resolvedModel(for: model, endpoint: endpoint)
-        let fallbackSource = sourceLabel(for: endpoint, model: resolvedModel)
+        let target = try resolvedRequestTarget(for: model, endpoint: endpoint)
+        let fallbackSource = sourceLabel(for: endpoint, model: target.displayModel)
 
         let requestVariants = try responsesRequestVariants(
-            model: resolvedModel,
+            model: target.requestModel,
             question: question,
             style: style
         )
@@ -288,6 +374,7 @@ final class RemoteAIStudyService: AIStudyServiceProtocol {
                 return try await executeResponsesRequest(
                     endpoint: resolvedEndpoint,
                     token: token,
+                    providerHeaders: target.headers,
                     requestBodyData: requestBody,
                     fallbackSource: fallbackSource
                 )
@@ -306,6 +393,7 @@ final class RemoteAIStudyService: AIStudyServiceProtocol {
     private func executeResponsesRequest(
         endpoint: URL,
         token: String?,
+        providerHeaders: [String: String],
         requestBodyData: Data,
         fallbackSource: String
     ) async throws -> AIStudyInsight {
@@ -314,6 +402,7 @@ final class RemoteAIStudyService: AIStudyServiceProtocol {
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.setValue("application/json", forHTTPHeaderField: "Accept")
         applyOpenAICompatibleAuthHeaders(to: &request, token: token)
+        applyAdditionalHeaders(providerHeaders, to: &request)
         request.httpBody = requestBodyData
 
         let (data, response) = try await performRequest(request)
@@ -401,21 +490,23 @@ final class RemoteAIStudyService: AIStudyServiceProtocol {
         style: AIInsightStyle
     ) async throws -> AIStudyInsight {
         let resolvedEndpoint = resolvedOpenAICompatibleEndpoint(from: endpoint)
-        let resolvedModel = try resolvedModel(for: model, endpoint: endpoint)
+        let target = try resolvedRequestTarget(for: model, endpoint: endpoint)
 
         var request = URLRequest(url: resolvedEndpoint)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.setValue("application/json", forHTTPHeaderField: "Accept")
         applyOpenAICompatibleAuthHeaders(to: &request, token: token)
+        applyAdditionalHeaders(target.headers, to: &request)
 
         let requestBody = OpenAIChatRequest(
-            model: resolvedModel,
+            model: target.requestModel,
             messages: [
                 .init(role: "system", content: systemPrompt),
                 .init(role: "user", content: userPrompt(for: question, style: style))
             ],
-            temperature: 0.3
+            temperature: 0.3,
+            extra_body: openAICompatibleExtraBody(for: endpoint, model: target.displayModel)
         )
         request.httpBody = try JSONEncoder().encode(requestBody)
 
@@ -436,12 +527,12 @@ final class RemoteAIStudyService: AIStudyServiceProtocol {
         do {
             return try decodeInsight(
                 from: content,
-                fallbackSource: sourceLabel(for: endpoint, model: resolvedModel)
+                fallbackSource: sourceLabel(for: endpoint, model: target.displayModel)
             )
         } catch {
             return fallbackInsight(
                 from: content,
-                fallbackSource: sourceLabel(for: endpoint, model: resolvedModel)
+                fallbackSource: sourceLabel(for: endpoint, model: target.displayModel)
             )
         }
     }
@@ -615,8 +706,13 @@ final class RemoteAIStudyService: AIStudyServiceProtocol {
         }
 
         let host = endpoint.host()?.lowercased() ?? ""
-        if host.contains("openai.com") || host.contains("deepseek.com") {
+        if isKnownOpenAICompatibleHost(host) {
             return .openAICompatible
+        }
+
+        if isLikelyOpenClawConfiguration(endpoint: endpoint, model: configuration.model),
+           isLikelyResponsesBaseEndpoint(endpoint) {
+            return .responses
         }
 
         if hasModel, isLikelyResponsesBaseEndpoint(endpoint) {
@@ -682,11 +778,17 @@ final class RemoteAIStudyService: AIStudyServiceProtocol {
         }
 
         let host = endpoint.host()?.lowercased() ?? ""
-        if host.contains("openai.com") {
+        if isOpenAIHost(host) {
             return "gpt-4.1-mini"
         }
-        if host.contains("deepseek.com") {
+        if isDeepSeekHost(host) {
             return "deepseek-chat"
+        }
+        if isMiniMaxHost(host) {
+            return "MiniMax-M2.5"
+        }
+        if isLikelyOpenClawConfiguration(endpoint: endpoint, model: model) {
+            return "openclaw"
         }
 
         throw RemoteAIServiceError.requestFailed("当前 AI 接口需要填写模型名称。")
@@ -694,13 +796,31 @@ final class RemoteAIStudyService: AIStudyServiceProtocol {
 
     private func sourceLabel(for endpoint: URL, model: String) -> String {
         let host = endpoint.host()?.lowercased() ?? ""
-        if host.contains("openai.com") {
+        if isOpenAIHost(host) {
             return "OpenAI · \(model)"
         }
-        if host.contains("deepseek.com") {
+        if isDeepSeekHost(host) {
             return "DeepSeek · \(model)"
         }
+        if isMiniMaxHost(host) {
+            return "MiniMax · \(model)"
+        }
+        if isLikelyOpenClawConfiguration(endpoint: endpoint, model: model) {
+            return "OpenClaw · \(model)"
+        }
         return "远程 AI · \(model)"
+    }
+
+    private func resolvedRequestTarget(for model: String?, endpoint: URL) throws -> ProviderRequestTarget {
+        let resolvedModel = try resolvedModel(for: model, endpoint: endpoint)
+        let headers = openClawRoutingHeaders(for: resolvedModel)
+        let requestModel = headers.isEmpty ? resolvedModel : "openclaw"
+
+        return ProviderRequestTarget(
+            requestModel: requestModel,
+            displayModel: resolvedModel,
+            headers: headers
+        )
     }
 
     private func isLikelyResponsesBaseEndpoint(_ endpoint: URL) -> Bool {
@@ -820,7 +940,7 @@ final class RemoteAIStudyService: AIStudyServiceProtocol {
     }
 
     private func normalizedJSONPayload(from content: String) -> String {
-        let stripped = stripCodeFence(from: content)
+        let stripped = stripThinkingTags(from: stripCodeFence(from: content))
         if let object = extractJSONObject(from: stripped) {
             return object
         }
@@ -828,7 +948,7 @@ final class RemoteAIStudyService: AIStudyServiceProtocol {
     }
 
     private func cleanedPlainText(from content: String) -> String {
-        stripCodeFence(from: content)
+        stripThinkingTags(from: stripCodeFence(from: content))
             .replacingOccurrences(of: "###", with: "")
             .replacingOccurrences(of: "##", with: "")
             .replacingOccurrences(of: "#", with: "")
@@ -920,6 +1040,16 @@ final class RemoteAIStudyService: AIStudyServiceProtocol {
         return lines.joined(separator: "\n").trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
+    private func stripThinkingTags(from text: String) -> String {
+        text
+            .replacingOccurrences(
+                of: #"(?is)<think>.*?</think>"#,
+                with: "",
+                options: .regularExpression
+            )
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
     private func extractJSONObject(from text: String) -> String? {
         guard let start = text.firstIndex(of: "{") else {
             return nil
@@ -967,6 +1097,95 @@ final class RemoteAIStudyService: AIStudyServiceProtocol {
             return trimmed
         }
         return "Bearer \(trimmed)"
+    }
+
+    private func applyAdditionalHeaders(_ headers: [String: String], to request: inout URLRequest) {
+        for (key, value) in headers {
+            request.setValue(value, forHTTPHeaderField: key)
+        }
+    }
+
+    private func openAICompatibleExtraBody(for endpoint: URL, model: String) -> OpenAIChatRequest.ExtraBody? {
+        let host = endpoint.host()?.lowercased() ?? ""
+        guard isMiniMaxHost(host) || isMiniMaxModel(model) else {
+            return nil
+        }
+
+        return .init(reasoning_split: true)
+    }
+
+    private func isKnownOpenAICompatibleHost(_ host: String) -> Bool {
+        isOpenAIHost(host) || isDeepSeekHost(host) || isMiniMaxHost(host)
+    }
+
+    private func isOpenAIHost(_ host: String) -> Bool {
+        host.contains("openai.com")
+    }
+
+    private func isDeepSeekHost(_ host: String) -> Bool {
+        host.contains("deepseek.com")
+    }
+
+    private func isMiniMaxHost(_ host: String) -> Bool {
+        host.contains("minimax.io") || host.contains("minimaxi.com")
+    }
+
+    private func isMiniMaxModel(_ model: String) -> Bool {
+        model.lowercased().hasPrefix("minimax-")
+    }
+
+    private func isLikelyOpenClawConfiguration(endpoint: URL, model: String?) -> Bool {
+        let host = endpoint.host()?.lowercased() ?? ""
+        let path = endpoint.path.lowercased()
+        let port = endpoint.port
+        let normalizedModel = sanitized(model)?.lowercased() ?? ""
+
+        if host.contains("openclaw") {
+            return true
+        }
+
+        if port == 18789 || port == 19001 {
+            return true
+        }
+
+        if path.contains("/v1/responses") || path.contains("/v1/chat/completions") {
+            return normalizedModel.hasPrefix("openclaw") || normalizedModel.hasPrefix("agent:")
+        }
+
+        return normalizedModel.hasPrefix("openclaw") || normalizedModel.hasPrefix("agent:")
+    }
+
+    private func openClawRoutingHeaders(for model: String) -> [String: String] {
+        guard let agentID = openClawAgentID(from: model) else {
+            return [:]
+        }
+
+        return ["x-openclaw-agent-id": agentID]
+    }
+
+    private func openClawAgentID(from model: String) -> String? {
+        let trimmed = model.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return nil }
+
+        let lowercase = trimmed.lowercased()
+
+        if lowercase.hasPrefix("agent:") {
+            let agentID = String(trimmed.dropFirst("agent:".count))
+            return sanitized(agentID)
+        }
+
+        if lowercase.hasPrefix("openclaw:") {
+            let agentID = String(trimmed.dropFirst("openclaw:".count))
+            return sanitized(agentID)
+        }
+
+        if lowercase.hasPrefix("openclaw/") {
+            let agentID = String(trimmed.dropFirst("openclaw/".count))
+            guard agentID.lowercased() != "default" else { return nil }
+            return sanitized(agentID)
+        }
+
+        return nil
     }
 
     private func applyOpenAICompatibleAuthHeaders(to request: inout URLRequest, token: String?) {

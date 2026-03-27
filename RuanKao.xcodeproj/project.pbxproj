@@ -24,6 +24,7 @@
 		41BD81B0232F3AE961519887 /* QuestionOptionRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 60935DF77FA6F71E29087B5A /* QuestionOptionRow.swift */; };
 		4477643787B48144BC21A152 /* MetricStrip.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8BC56E04CEE57041118D84A5 /* MetricStrip.swift */; };
 		457410FD0BB4D9D75F10D146 /* DashboardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3A52D273295C4D637910BC06 /* DashboardView.swift */; };
+		45D2689B1E050A3E7E2B98B1 /* FocusModeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7ACB4803C801E838DA211A3E /* FocusModeView.swift */; };
 		4E167DF7D181FD8939A39B5C /* questions_xisai_comprehensive_pack.json in Resources */ = {isa = PBXBuildFile; fileRef = FF12560850ED32E97529472C /* questions_xisai_comprehensive_pack.json */; };
 		5071371079C1E36E3632DE7A /* AppContainer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 59604DFA0C520977E8E8489D /* AppContainer.swift */; };
 		55ED82E925646CD87B7771A4 /* KeychainStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = C1B883F4393656D11EF65EA9 /* KeychainStore.swift */; };
@@ -46,7 +47,9 @@
 		AB9959964B122DA7000016D7 /* AIStudyInsight.swift in Sources */ = {isa = PBXBuildFile; fileRef = CB009CBA95D5C3E22786676E /* AIStudyInsight.swift */; };
 		ABA2BF37984A79ED2B781CF2 /* SQLiteProgressRepository.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A22BF2AE36E6DFCC559421F /* SQLiteProgressRepository.swift */; };
 		B3FC49E84CE85CD6AB524BAC /* questions_xisai_extended_pack.json in Resources */ = {isa = PBXBuildFile; fileRef = F5D35F88BFE5C0CDEB799C55 /* questions_xisai_extended_pack.json */; };
+		B8861F72AE91B2088B7FC0B5 /* OpenClawPortalView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FB1AE96D1D73FC6D84E8BED5 /* OpenClawPortalView.swift */; };
 		BD69E1EDA94E8AB2B36EAF7F /* PracticeViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7BA007B1723CD5AEFD1E8A21 /* PracticeViewModel.swift */; };
+		BEF2B4DF0A33C2E1041AB0DF /* questions_cheko_extension_pack.json in Resources */ = {isa = PBXBuildFile; fileRef = 20EA8D16EC974845CCD7CE9A /* questions_cheko_extension_pack.json */; };
 		C350C16449B37BFC6DFE1750 /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = AABB5373DBD340BCBFAFA191 /* LaunchScreen.storyboard */; };
 		CA39FFC9EED96F4794D638F3 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FDFF3B11CC8F8236078F4ED5 /* SettingsView.swift */; };
 		CDD36D7A07E07ECF2BB70F60 /* PracticeMode.swift in Sources */ = {isa = PBXBuildFile; fileRef = BC30386FB0AC542D59FA30FC /* PracticeMode.swift */; };
@@ -56,6 +59,7 @@
 		E0FFF718CBB54AECE4E448E9 /* ProgressRepositoryProtocol.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7E94F18B772C672B1D21660B /* ProgressRepositoryProtocol.swift */; };
 		E253E33B0A624F6252AC6D44 /* questions_xisai_reference_pack.json in Resources */ = {isa = PBXBuildFile; fileRef = E3CA72C604356E7F47F467B3 /* questions_xisai_reference_pack.json */; };
 		E6F10E1C9C1FFAC5689F6784 /* WrongQuestion.swift in Sources */ = {isa = PBXBuildFile; fileRef = 52439AEADD5200C67A38317E /* WrongQuestion.swift */; };
+		EC87A15A360706035CA7EAE3 /* questions_cheko_boost_pack.json in Resources */ = {isa = PBXBuildFile; fileRef = 58CF7279F2488BAE71E9FE95 /* questions_cheko_boost_pack.json */; };
 		EFB0B11C1BA04C7898D7ECA7 /* PrimaryCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2317C7E65CE46C05EC3537EC /* PrimaryCard.swift */; };
 		F3070D20A29CD346568DD8F4 /* SectionHeader.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3A4CD64FFD0D75DD6B70C635 /* SectionHeader.swift */; };
 		F3507B6C9835CFBD48AB9A41 /* AnalyticsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CD79B75314B426721E4FA5E6 /* AnalyticsView.swift */; };
@@ -69,6 +73,7 @@
 		0D3506ED46FEF7238EFCB54B /* QuestionRepositoryProtocol.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuestionRepositoryProtocol.swift; sourceTree = "<group>"; };
 		0E4B3B654621ADC66F15A9D8 /* questions_xisai_subjective_pack.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = questions_xisai_subjective_pack.json; sourceTree = "<group>"; };
 		1A1306D5ECD0A68684D29258 /* questions_seed.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = questions_seed.json; sourceTree = "<group>"; };
+		20EA8D16EC974845CCD7CE9A /* questions_cheko_extension_pack.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = questions_cheko_extension_pack.json; sourceTree = "<group>"; };
 		2317C7E65CE46C05EC3537EC /* PrimaryCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PrimaryCard.swift; sourceTree = "<group>"; };
 		285CDBF0194CE2E678840AEC /* RuanKaoApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RuanKaoApp.swift; sourceTree = "<group>"; };
 		3280BA89D6AE85C540FDCC1D /* questions_massive_pack.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = questions_massive_pack.json; sourceTree = "<group>"; };
@@ -79,6 +84,7 @@
 		52439AEADD5200C67A38317E /* WrongQuestion.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WrongQuestion.swift; sourceTree = "<group>"; };
 		52E814601019A0A75C08CC59 /* RemoteAIStudyService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RemoteAIStudyService.swift; sourceTree = "<group>"; };
 		57180B54712762AACEC11CF8 /* AppTheme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppTheme.swift; sourceTree = "<group>"; };
+		58CF7279F2488BAE71E9FE95 /* questions_cheko_boost_pack.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = questions_cheko_boost_pack.json; sourceTree = "<group>"; };
 		591244B624D18A357192DF9F /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		59604DFA0C520977E8E8489D /* AppContainer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppContainer.swift; sourceTree = "<group>"; };
 		5D47FC962A48F8C0DA544F6E /* AnalyticsRepositoryProtocol.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnalyticsRepositoryProtocol.swift; sourceTree = "<group>"; };
@@ -89,6 +95,7 @@
 		635D38914984AD918A357ED8 /* PillTag.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PillTag.swift; sourceTree = "<group>"; };
 		6A60C72561B8E58AFEBDE034 /* questions_cheko_style_pack.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = questions_cheko_style_pack.json; sourceTree = "<group>"; };
 		77FBA39D4D51F0A65D10C06E /* StatCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StatCard.swift; sourceTree = "<group>"; };
+		7ACB4803C801E838DA211A3E /* FocusModeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FocusModeView.swift; sourceTree = "<group>"; };
 		7BA007B1723CD5AEFD1E8A21 /* PracticeViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PracticeViewModel.swift; sourceTree = "<group>"; };
 		7E94F18B772C672B1D21660B /* ProgressRepositoryProtocol.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProgressRepositoryProtocol.swift; sourceTree = "<group>"; };
 		829537799BA4A903817B5256 /* AppConfiguration.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppConfiguration.swift; sourceTree = "<group>"; };
@@ -114,6 +121,7 @@
 		EB7E8F592CF45CA2ADDC1235 /* FavoritesView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FavoritesView.swift; sourceTree = "<group>"; };
 		F06EF2682BEAF375CC398F70 /* AnalyticsModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnalyticsModels.swift; sourceTree = "<group>"; };
 		F5D35F88BFE5C0CDEB799C55 /* questions_xisai_extended_pack.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = questions_xisai_extended_pack.json; sourceTree = "<group>"; };
+		FB1AE96D1D73FC6D84E8BED5 /* OpenClawPortalView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OpenClawPortalView.swift; sourceTree = "<group>"; };
 		FDFF3B11CC8F8236078F4ED5 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
 		FED1B5BEA3CFD8FFA69AE6D4 /* RuanKao.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = RuanKao.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		FF12560850ED32E97529472C /* questions_xisai_comprehensive_pack.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = questions_xisai_comprehensive_pack.json; sourceTree = "<group>"; };
@@ -156,6 +164,8 @@
 			children = (
 				3A52D273295C4D637910BC06 /* DashboardView.swift */,
 				CD02E55DD433BA11D035838C /* DashboardViewModel.swift */,
+				7ACB4803C801E838DA211A3E /* FocusModeView.swift */,
+				FB1AE96D1D73FC6D84E8BED5 /* OpenClawPortalView.swift */,
 			);
 			path = Home;
 			sourceTree = "<group>";
@@ -351,6 +361,8 @@
 		D0ADB31F95989FC7EE08B8FD /* Seeds */ = {
 			isa = PBXGroup;
 			children = (
+				58CF7279F2488BAE71E9FE95 /* questions_cheko_boost_pack.json */,
+				20EA8D16EC974845CCD7CE9A /* questions_cheko_extension_pack.json */,
 				6A60C72561B8E58AFEBDE034 /* questions_cheko_style_pack.json */,
 				3280BA89D6AE85C540FDCC1D /* questions_massive_pack.json */,
 				05BFCCDC97A4CC747116AB38 /* questions_pastpaper_derived_pack.json */,
@@ -443,6 +455,8 @@
 			files = (
 				3AE15AB1F303E297358297CF /* Assets.xcassets in Resources */,
 				C350C16449B37BFC6DFE1750 /* LaunchScreen.storyboard in Resources */,
+				EC87A15A360706035CA7EAE3 /* questions_cheko_boost_pack.json in Resources */,
+				BEF2B4DF0A33C2E1041AB0DF /* questions_cheko_extension_pack.json in Resources */,
 				706D5ED19F8D0B0062355554 /* questions_cheko_style_pack.json in Resources */,
 				6A1144FAFE8167E214CAC680 /* questions_massive_pack.json in Resources */,
 				8D4EE0B6F014CF020F6E93FE /* questions_pastpaper_derived_pack.json in Resources */,
@@ -477,10 +491,12 @@
 				02FD71B83C249BEB0E2C8FDE /* DatabaseMigrator.swift in Sources */,
 				8C6894C7F4CB16750910A980 /* FavoritesView.swift in Sources */,
 				5A71A502AEF11297525DF2B2 /* FavoritesViewModel.swift in Sources */,
+				45D2689B1E050A3E7E2B98B1 /* FocusModeView.swift in Sources */,
 				7112FD3F2BE59A833AD6DADF /* HybridAIStudyService.swift in Sources */,
 				55ED82E925646CD87B7771A4 /* KeychainStore.swift in Sources */,
 				4477643787B48144BC21A152 /* MetricStrip.swift in Sources */,
 				DAA027FDB95700AB062C9D66 /* MockAIStudyService.swift in Sources */,
+				B8861F72AE91B2088B7FC0B5 /* OpenClawPortalView.swift in Sources */,
 				F4F1D9A6C0657519896C9CCB /* PillTag.swift in Sources */,
 				CDD36D7A07E07ECF2BB70F60 /* PracticeMode.swift in Sources */,
 				AAC2AF922D0A2C2A8186A558 /* PracticeView.swift in Sources */,
@@ -545,7 +561,7 @@
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				COPY_PHASE_STRIP = NO;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
-				DEVELOPMENT_TEAM = "";
+				DEVELOPMENT_TEAM = 4K946ALQ47;
 				ENABLE_NS_ASSERTIONS = NO;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
 				GCC_C_LANGUAGE_STANDARD = gnu11;
@@ -603,7 +619,7 @@
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				COPY_PHASE_STRIP = NO;
 				DEBUG_INFORMATION_FORMAT = dwarf;
-				DEVELOPMENT_TEAM = "";
+				DEVELOPMENT_TEAM = 4K946ALQ47;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
 				ENABLE_TESTABILITY = YES;
 				GCC_C_LANGUAGE_STANDARD = gnu11;

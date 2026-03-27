@@ -11,10 +11,13 @@ struct RootTabView: View {
     }
 
     @ObservedObject var container: AppContainer
+    @ObservedObject private var focusSessionStore: FocusSessionStore
     @State private var selection: Tab = .home
+    @Environment(\.scenePhase) private var scenePhase
 
     init(container: AppContainer) {
         self.container = container
+        _focusSessionStore = ObservedObject(wrappedValue: container.focusSessionStore)
 
         let appearance = UITabBarAppearance()
         appearance.configureWithOpaqueBackground()
@@ -86,9 +89,26 @@ struct RootTabView: View {
         .tint(AppTheme.Colors.primary)
         .toolbarBackground(Color.white, for: .tabBar)
         .toolbarBackground(.visible, for: .tabBar)
+        .onChange(of: scenePhase) { _, newPhase in
+            focusSessionStore.handleScenePhase(newPhase)
+        }
+        .fullScreenCover(isPresented: focusOverlayBinding) {
+            FocusSessionExperienceView(container: container, store: focusSessionStore)
+        }
     }
 
     private func tabLabel(title: String, activeIcon: String, inactiveIcon: String, tab: Tab) -> some View {
         Label(title, systemImage: selection == tab ? activeIcon : inactiveIcon)
+    }
+
+    private var focusOverlayBinding: Binding<Bool> {
+        Binding(
+            get: { focusSessionStore.isPresenting },
+            set: { shouldPresent in
+                if !shouldPresent {
+                    focusSessionStore.requestDismissOverlay()
+                }
+            }
+        )
     }
 }

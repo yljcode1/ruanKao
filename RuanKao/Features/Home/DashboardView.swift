@@ -3,6 +3,7 @@ import SwiftUI
 
 struct DashboardView: View {
     @StateObject private var viewModel: DashboardViewModel
+    @ObservedObject private var focusSessionStore: FocusSessionStore
     @State private var isSettingsPresented = false
     private let container: AppContainer
     private let gridColumns = [
@@ -12,6 +13,7 @@ struct DashboardView: View {
 
     init(container: AppContainer) {
         self.container = container
+        _focusSessionStore = ObservedObject(wrappedValue: container.focusSessionStore)
         _viewModel = StateObject(
             wrappedValue: DashboardViewModel(
                 analyticsRepository: container.analyticsRepository,
@@ -25,6 +27,8 @@ struct DashboardView: View {
             VStack(alignment: .leading, spacing: AppTheme.Metrics.listSectionSpacing) {
                 overviewSection
                 practiceEntrySection
+                focusEntrySection
+                openClawSection
                 if !viewModel.topicSummaries.isEmpty {
                     topicEntrySection
                 }
@@ -161,6 +165,120 @@ struct DashboardView: View {
                 }
             }
         }
+    }
+
+    private var focusEntrySection: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            SectionHeader("专注学习", subtitle: focusSubtitle)
+
+            NavigationLink {
+                FocusModeView(store: container.focusSessionStore)
+            } label: {
+                PrimaryCard(style: .subtle) {
+                    HStack(alignment: .top, spacing: 14) {
+                        Image(systemName: "timer.circle.fill")
+                            .font(.title3.weight(.semibold))
+                            .foregroundStyle(AppTheme.Colors.primary)
+                            .frame(width: 44, height: 44)
+                            .background(AppTheme.Colors.muted)
+                            .clipShape(RoundedRectangle(cornerRadius: AppTheme.Metrics.compactRadius, style: .continuous))
+
+                        VStack(alignment: .leading, spacing: 6) {
+                            Text("开始一轮专注刷题")
+                                .font(.headline.weight(.semibold))
+                                .foregroundStyle(AppTheme.Colors.textPrimary)
+
+                            Text(focusDescription)
+                                .font(.footnote)
+                                .foregroundStyle(AppTheme.Colors.textSecondary)
+                                .fixedSize(horizontal: false, vertical: true)
+                        }
+
+                        Spacer(minLength: 0)
+
+                        Image(systemName: "chevron.right")
+                            .font(.footnote.weight(.semibold))
+                            .foregroundStyle(AppTheme.Colors.textTertiary)
+                    }
+                }
+            }
+            .buttonStyle(.plain)
+        }
+    }
+
+    private var openClawSection: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            SectionHeader("OpenClaw", subtitle: "支持 Control UI 页面，也支持 `ws(s)` 网关地址")
+
+            NavigationLink {
+                OpenClawPortalView()
+            } label: {
+                PrimaryCard(style: .subtle) {
+                    HStack(alignment: .top, spacing: 14) {
+                        Image(systemName: "link.circle.fill")
+                            .font(.title3.weight(.semibold))
+                            .foregroundStyle(AppTheme.Colors.primary)
+                            .frame(width: 44, height: 44)
+                            .background(AppTheme.Colors.muted)
+                            .clipShape(RoundedRectangle(cornerRadius: AppTheme.Metrics.compactRadius, style: .continuous))
+
+                        VStack(alignment: .leading, spacing: 6) {
+                            Text("打开 OpenClaw 工作台")
+                                .font(.headline.weight(.semibold))
+                                .foregroundStyle(AppTheme.Colors.textPrimary)
+
+                            Text("如果你手里的是 OpenClaw WebSocket 网关地址，也可以直接填，App 会自动尝试打开同主机同端口的工作台页面。")
+                                .font(.footnote)
+                                .foregroundStyle(AppTheme.Colors.textSecondary)
+                                .fixedSize(horizontal: false, vertical: true)
+                        }
+
+                        Spacer(minLength: 0)
+
+                        Image(systemName: "chevron.right")
+                            .font(.footnote.weight(.semibold))
+                            .foregroundStyle(AppTheme.Colors.textTertiary)
+                    }
+                }
+            }
+            .buttonStyle(.plain)
+        }
+    }
+
+    private var focusSubtitle: String {
+        guard let session = focusSessionStore.session else {
+            return "倒计时期间离开刷题流程或离开前台就判定失败"
+        }
+
+        switch session.status {
+        case .running:
+            return "进行中 · 剩余 \(formattedFocusTime(focusSessionStore.remainingSeconds))"
+        case .completed:
+            return "上一轮已完成，可继续下一轮"
+        case .interrupted:
+            return "上一轮已中断，点击重新开始"
+        }
+    }
+
+    private var focusDescription: String {
+        guard let session = focusSessionStore.session else {
+            return "开始后会自动进入刷题流程，需要持续刷题直到倒计时结束。"
+        }
+
+        switch session.status {
+        case .running:
+            return "本轮 \(session.durationMinutes) 分钟正在进行；底部其他 Tab 已隐藏，离开刷题流程或离开前台都会立即中断。"
+        case .completed:
+            return "上一轮 \(session.durationMinutes) 分钟已经完成，现在可以继续开下一轮。"
+        case .interrupted:
+            return session.message ?? "你离开了前台，所以本轮被系统判定为失败。"
+        }
+    }
+
+    private func formattedFocusTime(_ totalSeconds: Int) -> String {
+        let minutes = totalSeconds / 60
+        let seconds = totalSeconds % 60
+        return String(format: "%02d:%02d", minutes, seconds)
     }
 
     private var insightSection: some View {

@@ -27,6 +27,7 @@ enum AppConfiguration {
     private static let aiServiceTokenKey = "ai_service_token"
     private static let aiServiceModelKey = "ai_service_model"
     private static let aiServiceProtocolKey = "ai_service_protocol"
+    private static let openClawPortalPasswordKey = "openclaw_portal_password"
     private static let keychain = KeychainStore(
         service: Bundle.main.bundleIdentifier ?? "com.codexdemo.ruankao"
     )
@@ -64,6 +65,10 @@ enum AppConfiguration {
             return .automatic
         }
         return preference
+    }
+
+    static var openClawPortalPassword: String? {
+        sanitized(try? keychain.string(forKey: openClawPortalPasswordKey))
     }
 
     static var isRemoteAIEnabled: Bool {
@@ -106,6 +111,14 @@ enum AppConfiguration {
         UserDefaults.standard.removeObject(forKey: aiServiceModelKey)
         UserDefaults.standard.removeObject(forKey: aiServiceProtocolKey)
         try keychain.removeValue(forKey: aiServiceTokenKey)
+    }
+
+    static func saveOpenClawPortalPassword(_ password: String) throws {
+        if let sanitizedPassword = sanitized(password) {
+            try keychain.set(sanitizedPassword, forKey: openClawPortalPasswordKey)
+        } else {
+            try keychain.removeValue(forKey: openClawPortalPasswordKey)
+        }
     }
 
     static func maskedTokenDescription(for token: String?) -> String {

@@ -212,6 +212,9 @@ struct SettingsView: View {
                     Text("现在已支持三种方式：1）自定义接口；2）OpenAI / DeepSeek `chat/completions`；3）`Responses API` 中转站。像 `https://aixj.vip` 这类 `wire_api = responses` 的地址，可以直接填根地址，再把模型填成 `gpt-5.4`。")
                         .font(.footnote)
                         .foregroundStyle(AppTheme.Colors.textSecondary)
+                    Text("MiniMax 也已兼容：国际站填 `https://api.minimax.io/v1`，中国站填 `https://api.minimaxi.com/v1`，协议选 `自动识别` 或 `Chat Completions`，模型可先填 `MiniMax-M2.5`。")
+                        .font(.footnote)
+                        .foregroundStyle(AppTheme.Colors.textSecondary)
                     Text("如果你的中转站走 `chat/completions`，建议填完整接口如 `/v1/chat/completions`；如果走 `responses`，可直接填根地址、`/v1` 或完整 `/v1/responses`。")
                         .font(.footnote)
                         .foregroundStyle(AppTheme.Colors.textSecondary)
@@ -437,7 +440,19 @@ struct SettingsView: View {
         preferredModel: String?,
         protocolPreference: AIServiceProtocolPreference
     ) -> [String?] {
-        var candidates: [String?] = [preferredModel]
+        var candidates: [String?] = []
+
+        if let preferredModel {
+            candidates.append(preferredModel)
+        }
+
+        if shouldTryProviderDefaultModelDuringConnectionTest(endpoint: endpoint) ||
+            shouldTryDefaultModelDuringConnectionTest(
+                endpoint: endpoint,
+                protocolPreference: protocolPreference
+            ) {
+            candidates.append(nil)
+        }
 
         guard shouldProbeAlternativeModels(
             endpoint: endpoint,
@@ -446,7 +461,74 @@ struct SettingsView: View {
             return deduplicatedModels(candidates)
         }
 
-        candidates.append(contentsOf: [
+        candidates.append(contentsOf: suggestedAlternativeModels(for: endpoint))
+
+        return deduplicatedModels(candidates)
+    }
+
+    private func shouldTryProviderDefaultModelDuringConnectionTest(endpoint: String) -> Bool {
+        guard let url = URL(string: endpoint) else { return false }
+        let host = url.host()?.lowercased() ?? ""
+
+        return host.contains("openai.com")
+            || host.contains("deepseek.com")
+            || host.contains("minimax.io")
+            || host.contains("minimaxi.com")
+            || host.contains("openclaw")
+            || url.port == 18789
+            || url.port == 19001
+    }
+
+    private func shouldTryDefaultModelDuringConnectionTest(
+        endpoint: String,
+        protocolPreference: AIServiceProtocolPreference
+    ) -> Bool {
+        switch protocolPreference {
+        case .custom, .responses, .chatCompletions:
+            return false
+        case .automatic:
+            break
+        }
+
+        guard let url = URL(string: endpoint) else { return false }
+        let host = url.host()?.lowercased() ?? ""
+        return host.contains("openai.com") || host.contains("deepseek.com")
+    }
+
+    private func suggestedAlternativeModels(for endpoint: String) -> [String] {
+        guard let url = URL(string: endpoint) else {
+            return [
+                "gpt-4.1-mini",
+                "gpt-4.1",
+                "gpt-4o-mini",
+                "gpt-4o",
+                "gpt-5",
+                "gpt-5.4",
+                "o4-mini"
+            ]
+        }
+
+        let host = url.host()?.lowercased() ?? ""
+        if host.contains("openclaw") || url.port == 18789 || url.port == 19001 {
+            return [
+                "openclaw",
+                "openclaw/default",
+                "openclaw:main",
+                "openclaw/main"
+            ]
+        }
+
+        if host.contains("minimax.io") || host.contains("minimaxi.com") {
+            return [
+                "MiniMax-M2.5",
+                "MiniMax-M2.5-highspeed",
+                "MiniMax-M2.1",
+                "MiniMax-M2.1-highspeed",
+                "MiniMax-M2"
+            ]
+        }
+
+        return [
             "gpt-4.1-mini",
             "gpt-4.1",
             "gpt-4o-mini",
@@ -454,9 +536,7 @@ struct SettingsView: View {
             "gpt-5",
             "gpt-5.4",
             "o4-mini"
-        ])
-
-        return deduplicatedModels(candidates)
+        ]
     }
 
     private func shouldProbeAlternativeModels(
@@ -478,6 +558,14 @@ struct SettingsView: View {
 
         if host.contains("openai.com") || host.contains("deepseek.com") {
             return false
+        }
+
+        if host.contains("minimax.io") || host.contains("minimaxi.com") {
+            return true
+        }
+
+        if host.contains("openclaw") || url.port == 18789 || url.port == 19001 {
+            return true
         }
 
         if path.contains("/chat/completions") {
