@@ -2,26 +2,43 @@ import SwiftUI
 
 enum AppTheme {
     enum Colors {
-        static let primary = Color(red: 0.11, green: 0.12, blue: 0.14)
-        static let secondary = Color(red: 0.43, green: 0.45, blue: 0.50)
-        static let accent = Color(red: 0.22, green: 0.41, blue: 0.82)
-        static let success = Color(red: 0.22, green: 0.56, blue: 0.40)
-        static let danger = Color(red: 0.74, green: 0.34, blue: 0.31)
-        static let background = Color(red: 0.96, green: 0.96, blue: 0.97)
-        static let card = Color.white
-        static let elevatedCard = Color.white
-        static let muted = Color.black.opacity(0.025)
-        static let stroke = Color.black.opacity(0.06)
+        static let primary = dynamic(
+            light: UIColor(red: 0.11, green: 0.12, blue: 0.14, alpha: 1),
+            dark: UIColor(red: 0.25, green: 0.35, blue: 0.62, alpha: 1)
+        )
+        static let secondary = dynamic(
+            light: UIColor(red: 0.43, green: 0.45, blue: 0.50, alpha: 1),
+            dark: UIColor(red: 0.67, green: 0.70, blue: 0.76, alpha: 1)
+        )
+        static let accent = Color(uiColor: .systemBlue)
+        static let success = Color(uiColor: .systemGreen)
+        static let danger = Color(uiColor: .systemRed)
+        static let background = Color(uiColor: .systemGroupedBackground)
+        static let card = Color(uiColor: .secondarySystemGroupedBackground)
+        static let elevatedCard = Color(uiColor: .systemBackground)
+        static let muted = Color(uiColor: .tertiarySystemFill)
+        static let stroke = dynamic(
+            light: UIColor.black.withAlphaComponent(0.06),
+            dark: UIColor.white.withAlphaComponent(0.12)
+        )
         static let textPrimary = Color(uiColor: .label)
         static let textSecondary = Color(uiColor: .secondaryLabel)
         static let textTertiary = Color(uiColor: .tertiaryLabel)
+
+        private static func dynamic(light: UIColor, dark: UIColor) -> Color {
+            Color(
+                uiColor: UIColor { traitCollection in
+                    traitCollection.userInterfaceStyle == .dark ? dark : light
+                }
+            )
+        }
     }
 
     enum Gradients {
         static let hero = LinearGradient(
             colors: [
-                Color.white,
-                Color(red: 0.95, green: 0.96, blue: 0.98)
+                Colors.elevatedCard,
+                Colors.card
             ],
             startPoint: .topLeading,
             endPoint: .bottomTrailing

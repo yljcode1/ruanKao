@@ -2,6 +2,12 @@ import Foundation
 
 @MainActor
 final class DashboardViewModel: ObservableObject {
+    private struct LoadPayload {
+        let snapshot: DashboardSnapshot
+        let allTopicSummaries: [TopicSummary]
+        let availableYears: [Int]
+    }
+
     @Published private(set) var snapshot: DashboardSnapshot?
     @Published private(set) var availableYears: [Int] = []
     @Published private(set) var topicSummaries: [TopicSummary] = []
@@ -13,28 +19,58 @@ final class DashboardViewModel: ObservableObject {
 
     private let analyticsRepository: AnalyticsRepositoryProtocol
     private let questionRepository: QuestionRepositoryProtocol
+    private var loadTask: Task<Void, Never>?
 
     init(analyticsRepository: AnalyticsRepositoryProtocol, questionRepository: QuestionRepositoryProtocol) {
         self.analyticsRepository = analyticsRepository
         self.questionRepository = questionRepository
     }
 
-    func load() {
-        isLoading = true
-        defer { isLoading = false }
+    deinit {
+        loadTask?.cancel()
+    }
 
-        do {
-            errorMessage = nil
-            let snapshot = try analyticsRepository.dashboardSnapshot()
-            let allTopicSummaries = try questionRepository.fetchTopicSummaries(limit: nil)
-            self.snapshot = snapshot
-            availableYears = try questionRepository.fetchAvailableYears()
-            topicSummaries = Array(allTopicSummaries.prefix(6))
-            totalTopicCount = allTopicSummaries.count
-            totalTopicQuestionCount = allTopicSummaries.map(\.questionCount).reduce(0, +)
-            studyPlan = makeStudyPlan(from: snapshot)
-        } catch {
-            errorMessage = error.localizedDescription
+    func load() {
+        loadTask?.cancel()
+        isLoading = true
+        errorMessage = nil
+
+        let analyticsRepository = analyticsRepository
+        let questionRepository = questionRepository
+
+        loadTask = Task { [weak self] in
+            let result = await Task.detached(priority: .userInitiated) { () -> Result<LoadPayload, Error> in
+                do {
+                    let snapshot = try analyticsRepository.dashboardSnapshot()
+                    let allTopicSummaries = try questionRepository.fetchTopicSummaries(limit: nil)
+                    let years = try questionRepository.fetchAvailableYears()
+                    return .success(
+                        LoadPayload(
+                            snapshot: snapshot,
+                            allTopicSummaries: allTopicSummaries,
+                            availableYears: years
+                        )
+                    )
+                } catch {
+                    return .failure(error)
+                }
+            }.value
+
+            guard let self, !Task.isCancelled else { return }
+
+            self.isLoading = false
+
+            switch result {
+            case .success(let payload):
+                self.snapshot = payload.snapshot
+                self.availableYears = payload.availableYears
+                self.topicSummaries = Array(payload.allTopicSummaries.prefix(6))
+                self.totalTopicCount = payload.allTopicSummaries.count
+                self.totalTopicQuestionCount = payload.allTopicSummaries.map(\.questionCount).reduce(0, +)
+                self.studyPlan = self.makeStudyPlan(from: payload.snapshot)
+            case .failure(let error):
+                self.errorMessage = error.localizedDescription
+            }
         }
     }
 
