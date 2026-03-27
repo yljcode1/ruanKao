@@ -32,6 +32,12 @@ final class SQLiteQuestionRepository: QuestionRepositoryProtocol, @unchecked Sen
         }
     }
 
+    private struct SearchSuggestionCandidate {
+        let suggestion: String
+        let weight: Int
+        let sourceRank: Int
+    }
+
     private enum MetadataKey {
         static let questionSeedManifest = "question_seed_manifest"
         static let questionSearchManifest = "question_search_manifest"
@@ -40,6 +46,12 @@ final class SQLiteQuestionRepository: QuestionRepositoryProtocol, @unchecked Sen
     private let database: SQLiteDatabase
     private let decoder = JSONDecoder()
     private let encoder = JSONEncoder()
+    private let cacheLock = NSLock()
+    private var cachedCategories: [String]?
+    private var cachedYears: [Int]?
+    private var cachedTopicSummaries: [TopicSummary]?
+    private var cachedSearchSuggestionCandidates: [SearchSuggestionCandidate]?
+    private var cachedSearchIndexSupport: Bool?
 
     init(database: SQLiteDatabase) {
         self.database = database
@@ -130,60 +142,59 @@ final class SQLiteQuestionRepository: QuestionRepositoryProtocol, @unchecked Sen
         let normalizedKeyword = keyword.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !normalizedKeyword.isEmpty, limit > 0 else { return [] }
 
-        let containsPattern = "%\(normalizedKeyword)%"
-        let prefixPattern = "\(normalizedKeyword)%"
+        let foldedKeyword = normalizedKeyword.folding(
+            options: [.caseInsensitive, .diacriticInsensitive, .widthInsensitive],
+            locale: .current
+        )
 
-        return try database.read { db in
-            let statement = try prepareStatement(
-                database: db,
-                sql: """
-                WITH suggestions AS (
-                    SELECT category AS suggestion, COUNT(*) AS weight, 0 AS source_rank
-                    FROM questions
-                    WHERE category LIKE ?
-                    GROUP BY category
-
-                    UNION ALL
-
-                    SELECT knowledge_point AS suggestion, COUNT(*) AS weight, 1 AS source_rank
-                    FROM question_knowledge_points
-                    WHERE knowledge_point LIKE ?
-                    GROUP BY knowledge_point
+        return try searchSuggestionCandidates()
+            .filter { candidate in
+                candidate.suggestion.folding(
+                    options: [.caseInsensitive, .diacriticInsensitive, .widthInsensitive],
+                    locale: .current
                 )
-                SELECT suggestion
-                FROM suggestions
-                GROUP BY suggestion
-                ORDER BY
-                    CASE WHEN suggestion LIKE ? THEN 0 ELSE 1 END ASC,
-                    MIN(source_rank) ASC,
-                    SUM(weight) DESC,
-                    LENGTH(suggestion) ASC,
-                    suggestion COLLATE NOCASE ASC
-                LIMIT ?;
-                """
-            )
-            defer { sqlite3_finalize(statement) }
-
-            try bind(
-                [
-                    .text(containsPattern),
-                    .text(containsPattern),
-                    .text(prefixPattern),
-                    .int(Int64(limit))
-                ],
-                to: statement
-            )
-
-            var suggestions: [String] = []
-            while sqlite3_step(statement) == SQLITE_ROW {
-                suggestions.append(columnText(statement, index: 0))
+                .contains(foldedKeyword)
             }
-            return suggestions
-        }
+            .sorted { lhs, rhs in
+                let lhsText = lhs.suggestion.folding(
+                    options: [.caseInsensitive, .diacriticInsensitive, .widthInsensitive],
+                    locale: .current
+                )
+                let rhsText = rhs.suggestion.folding(
+                    options: [.caseInsensitive, .diacriticInsensitive, .widthInsensitive],
+                    locale: .current
+                )
+                let lhsPrefix = lhsText.hasPrefix(foldedKeyword)
+                let rhsPrefix = rhsText.hasPrefix(foldedKeyword)
+
+                if lhsPrefix != rhsPrefix {
+                    return lhsPrefix && !rhsPrefix
+                }
+
+                if lhs.sourceRank != rhs.sourceRank {
+                    return lhs.sourceRank < rhs.sourceRank
+                }
+
+                if lhs.weight != rhs.weight {
+                    return lhs.weight > rhs.weight
+                }
+
+                if lhs.suggestion.count != rhs.suggestion.count {
+                    return lhs.suggestion.count < rhs.suggestion.count
+                }
+
+                return lhs.suggestion.localizedCompare(rhs.suggestion) == .orderedAscending
+            }
+            .prefix(limit)
+            .map(\.suggestion)
     }
 
     func fetchCategories() throws -> [String] {
-        try database.read { db in
+        if let cached = withCacheLock({ cachedCategories }) {
+            return cached
+        }
+
+        let categories = try database.read { db in
             let statement = try prepareStatement(
                 database: db,
                 sql: """
@@ -200,10 +211,19 @@ final class SQLiteQuestionRepository: QuestionRepositoryProtocol, @unchecked Sen
             }
             return categories
         }
+
+        withCacheLock {
+            cachedCategories = categories
+        }
+        return categories
     }
 
     func fetchAvailableYears() throws -> [Int] {
-        try database.read { db in
+        if let cached = withCacheLock({ cachedYears }) {
+            return cached
+        }
+
+        let years = try database.read { db in
             let statement = try prepareStatement(
                 database: db,
                 sql: """
@@ -220,9 +240,21 @@ final class SQLiteQuestionRepository: QuestionRepositoryProtocol, @unchecked Sen
             }
             return years
         }
+
+        withCacheLock {
+            cachedYears = years
+        }
+        return years
     }
 
     func fetchTopicSummaries(limit: Int?) throws -> [TopicSummary] {
+        if let cached = withCacheLock({ cachedTopicSummaries }) {
+            if let limit {
+                return Array(cached.prefix(limit))
+            }
+            return cached
+        }
+
         var sql = """
         SELECT
             category,
@@ -242,7 +274,7 @@ final class SQLiteQuestionRepository: QuestionRepositoryProtocol, @unchecked Sen
         }
         sql += ";"
 
-        return try database.read { db in
+        let summaries = try database.read { db in
             let statement = try prepareStatement(database: db, sql: sql)
             defer { sqlite3_finalize(statement) }
             try bind(bindings, to: statement)
@@ -262,6 +294,14 @@ final class SQLiteQuestionRepository: QuestionRepositoryProtocol, @unchecked Sen
 
             return summaries
         }
+
+        if limit == nil {
+            withCacheLock {
+                cachedTopicSummaries = summaries
+            }
+        }
+
+        return summaries
     }
 
     func fetchFavoriteQuestions() throws -> [Question] {
@@ -724,6 +764,8 @@ final class SQLiteQuestionRepository: QuestionRepositoryProtocol, @unchecked Sen
                 )
             }
         }
+
+        invalidateStaticCaches()
     }
 
     private func importBundledQuestionBank(
@@ -841,6 +883,8 @@ final class SQLiteQuestionRepository: QuestionRepositoryProtocol, @unchecked Sen
                 }
             }
         }
+
+        invalidateStaticCaches()
     }
 
     private func executeUpdate(statement: OpaquePointer?, bindings: [SQLiteBindingValue], database db: OpaquePointer) throws {
@@ -943,7 +987,11 @@ final class SQLiteQuestionRepository: QuestionRepositoryProtocol, @unchecked Sen
     }
 
     private func hasSearchIndex() throws -> Bool {
-        try database.read { db in
+        if let cached = withCacheLock({ cachedSearchIndexSupport }) {
+            return cached
+        }
+
+        let hasIndex = try database.read { db in
             let statement = try prepareStatement(
                 database: db,
                 sql: """
@@ -957,6 +1005,11 @@ final class SQLiteQuestionRepository: QuestionRepositoryProtocol, @unchecked Sen
 
             return sqlite3_step(statement) == SQLITE_ROW
         }
+
+        withCacheLock {
+            cachedSearchIndexSupport = hasIndex
+        }
+        return hasIndex
     }
 
     private func rebuildSearchIndex(searchManifest: String) throws {
@@ -1035,6 +1088,52 @@ final class SQLiteQuestionRepository: QuestionRepositoryProtocol, @unchecked Sen
                 database: db
             )
         }
+    }
+
+    private func searchSuggestionCandidates() throws -> [SearchSuggestionCandidate] {
+        if let cached = withCacheLock({ cachedSearchSuggestionCandidates }) {
+            return cached
+        }
+
+        let candidates = try database.read { db in
+            let statement = try prepareStatement(
+                database: db,
+                sql: """
+                WITH suggestions AS (
+                    SELECT category AS suggestion, COUNT(*) AS weight, 0 AS source_rank
+                    FROM questions
+                    GROUP BY category
+
+                    UNION ALL
+
+                    SELECT knowledge_point AS suggestion, COUNT(*) AS weight, 1 AS source_rank
+                    FROM question_knowledge_points
+                    GROUP BY knowledge_point
+                )
+                SELECT suggestion, SUM(weight) AS total_weight, MIN(source_rank) AS source_rank
+                FROM suggestions
+                GROUP BY suggestion;
+                """
+            )
+            defer { sqlite3_finalize(statement) }
+
+            var values: [SearchSuggestionCandidate] = []
+            while sqlite3_step(statement) == SQLITE_ROW {
+                values.append(
+                    SearchSuggestionCandidate(
+                        suggestion: columnText(statement, index: 0),
+                        weight: Int(sqlite3_column_int(statement, 1)),
+                        sourceRank: Int(sqlite3_column_int(statement, 2))
+                    )
+                )
+            }
+            return values
+        }
+
+        withCacheLock {
+            cachedSearchSuggestionCandidates = candidates
+        }
+        return candidates
     }
 
     private func fetchQuestion(id: Int64) throws -> Question? {
@@ -1327,4 +1426,21 @@ final class SQLiteQuestionRepository: QuestionRepositoryProtocol, @unchecked Sen
         questions.score,
         questions.estimated_minutes
     """
+
+    private func invalidateStaticCaches() {
+        withCacheLock {
+            cachedCategories = nil
+            cachedYears = nil
+            cachedTopicSummaries = nil
+            cachedSearchSuggestionCandidates = nil
+            cachedSearchIndexSupport = nil
+        }
+    }
+
+    @discardableResult
+    private func withCacheLock<T>(_ body: () -> T) -> T {
+        cacheLock.lock()
+        defer { cacheLock.unlock() }
+        return body()
+    }
 }
