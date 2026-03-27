@@ -64,6 +64,7 @@
 3. PR 合并到 `master`
 4. 打 Tag / 创建 GitHub Release
 5. 如有发布收尾改动，再回合并到 `develop` / `test`
+6. 标准发版清单见 `RELEASE.md`
 
 ### 紧急修复
 
@@ -74,8 +75,8 @@
 
 ## 规则约束
 
-- `main`、`develop` 必须开启保护
-- 禁止直接向 `main` 推送
+- `master`、`develop`、`test` 必须开启保护
+- 禁止直接向 `master` 推送
 - 关键分支必须通过 PR 合并
 - 合并前必须通过 CI
 - 分支命名统一使用：
@@ -91,3 +92,4 @@
 - 测试分支：`test`
 - 发布分支：`master`
 - 当前 CI 检查名：`build`
+- Release PR 模板：`.github/PULL_REQUEST_TEMPLATE/release_to_master.md`
