@@ -5,6 +5,8 @@ final class DashboardViewModel: ObservableObject {
     @Published private(set) var snapshot: DashboardSnapshot?
     @Published private(set) var availableYears: [Int] = []
     @Published private(set) var topicSummaries: [TopicSummary] = []
+    @Published private(set) var totalTopicCount = 0
+    @Published private(set) var totalTopicQuestionCount = 0
     @Published private(set) var studyPlan: [StudyPlanTask] = []
     @Published private(set) var isLoading = false
     @Published var errorMessage: String?
@@ -24,9 +26,12 @@ final class DashboardViewModel: ObservableObject {
         do {
             errorMessage = nil
             let snapshot = try analyticsRepository.dashboardSnapshot()
+            let allTopicSummaries = try questionRepository.fetchTopicSummaries(limit: nil)
             self.snapshot = snapshot
             availableYears = try questionRepository.fetchAvailableYears()
-            topicSummaries = try questionRepository.fetchTopicSummaries(limit: 6)
+            topicSummaries = Array(allTopicSummaries.prefix(6))
+            totalTopicCount = allTopicSummaries.count
+            totalTopicQuestionCount = allTopicSummaries.map(\.questionCount).reduce(0, +)
             studyPlan = makeStudyPlan(from: snapshot)
         } catch {
             errorMessage = error.localizedDescription

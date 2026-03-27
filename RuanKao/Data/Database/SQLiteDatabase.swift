@@ -55,6 +55,9 @@ final class SQLiteDatabase {
 
         self.handle = pointer
         try execute("PRAGMA foreign_keys = ON;")
+        try execute("PRAGMA journal_mode = WAL;")
+        try execute("PRAGMA synchronous = NORMAL;")
+        try execute("PRAGMA temp_store = MEMORY;")
     }
 
     deinit {
@@ -70,6 +73,25 @@ final class SQLiteDatabase {
     func write<T>(_ block: (OpaquePointer) throws -> T) throws -> T {
         try queue.sync {
             try block(handle)
+        }
+    }
+
+    func transaction<T>(_ block: (OpaquePointer) throws -> T) throws -> T {
+        try write { db in
+            guard sqlite3_exec(db, "BEGIN IMMEDIATE TRANSACTION;", nil, nil, nil) == SQLITE_OK else {
+                throw SQLiteError.executeFailed(lastErrorMessage(db))
+            }
+
+            do {
+                let result = try block(db)
+                guard sqlite3_exec(db, "COMMIT;", nil, nil, nil) == SQLITE_OK else {
+                    throw SQLiteError.executeFailed(lastErrorMessage(db))
+                }
+                return result
+            } catch {
+                sqlite3_exec(db, "ROLLBACK;", nil, nil, nil)
+                throw error
+            }
         }
     }
 

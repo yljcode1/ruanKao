@@ -431,10 +431,10 @@ struct DashboardView: View {
                         }
 
                         HStack(spacing: 12) {
-                            miniStat(title: "专题数", value: "\(viewModel.topicSummaries.count)+")
+                            miniStat(title: "专题数", value: "\(viewModel.totalTopicCount)")
                             miniStat(
                                 title: "入口题量",
-                                value: "\(viewModel.topicSummaries.map(\.questionCount).reduce(0, +)) 题"
+                                value: "\(viewModel.totalTopicQuestionCount) 题"
                             )
                         }
                     }

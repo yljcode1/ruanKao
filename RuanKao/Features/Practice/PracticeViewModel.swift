@@ -6,6 +6,7 @@ final class PracticeViewModel: ObservableObject {
     @Published var selectedCategory: String? = nil
     @Published var selectedYear: Int? = nil
     @Published var searchText = ""
+    @Published private(set) var selectedQuestionLimit: Int
     @Published private(set) var categories: [String] = []
     @Published private(set) var years: [Int] = []
     @Published private(set) var questions: [Question] = []
@@ -37,7 +38,8 @@ final class PracticeViewModel: ObservableObject {
         aiStudyService: AIStudyServiceProtocol,
         preferredMode: PracticeMode,
         initialCategory: String? = nil,
-        initialYear: Int? = nil
+        initialYear: Int? = nil,
+        initialSearchText: String? = nil
     ) {
         self.questionRepository = questionRepository
         self.progressRepository = progressRepository
@@ -45,6 +47,8 @@ final class PracticeViewModel: ObservableObject {
         self.selectedMode = preferredMode
         self.selectedCategory = initialCategory
         self.selectedYear = initialYear
+        self.searchText = initialSearchText ?? ""
+        self.selectedQuestionLimit = Self.defaultQuestionLimit(for: preferredMode)
     }
 
     deinit {
@@ -76,6 +80,15 @@ final class PracticeViewModel: ObservableObject {
         return favoriteQuestionIDs.contains(currentQuestion.id)
     }
 
+    var availableQuestionLimits: [Int] {
+        switch selectedMode {
+        case .mockExam:
+            return [25, 50, 100]
+        case .sequential, .random, .wrongOnly:
+            return [20, 50, 100, 200]
+        }
+    }
+
     func loadInitialData() {
         do {
             categories = try questionRepository.fetchCategories()
@@ -94,7 +107,7 @@ final class PracticeViewModel: ObservableObject {
         do {
             questions = try questionRepository.loadPracticeQuestions(
                 mode: selectedMode,
-                limit: questionLimit(for: selectedMode),
+                limit: selectedQuestionLimit,
                 category: selectedCategory,
                 year: selectedYear,
                 keyword: normalizedSearchText
@@ -120,6 +133,9 @@ final class PracticeViewModel: ObservableObject {
     func switchMode(_ mode: PracticeMode) {
         guard selectedMode != mode else { return }
         selectedMode = mode
+        if !availableQuestionLimits.contains(selectedQuestionLimit) {
+            selectedQuestionLimit = Self.defaultQuestionLimit(for: mode)
+        }
         loadQuestions()
     }
 
@@ -134,6 +150,12 @@ final class PracticeViewModel: ObservableObject {
     }
 
     func applySearch() {
+        loadQuestions()
+    }
+
+    func selectQuestionLimit(_ limit: Int) {
+        guard selectedQuestionLimit != limit else { return }
+        selectedQuestionLimit = limit
         loadQuestions()
     }
 
@@ -259,19 +281,11 @@ final class PracticeViewModel: ObservableObject {
         isAILoading = false
     }
 
-    private func questionLimit(for mode: PracticeMode) -> Int {
-        if hasActiveFilters {
-            return 100
-        }
-
+    private static func defaultQuestionLimit(for mode: PracticeMode) -> Int {
         switch mode {
-        case .sequential:
-            return 20
-        case .random:
-            return 20
         case .mockExam:
             return 25
-        case .wrongOnly:
+        case .sequential, .random, .wrongOnly:
             return 20
         }
     }
