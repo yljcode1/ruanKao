@@ -1,5 +1,7 @@
 # 软考高级系统架构师刷题 App
 
+[![iOS CI](https://github.com/yljcode1/ruanKao/actions/workflows/ios-ci.yml/badge.svg)](https://github.com/yljcode1/ruanKao/actions/workflows/ios-ci.yml)
+
 一个面向长期学习与商业化的 SwiftUI 刷题应用脚手架，聚焦：
 
 - 历年真题与章节题库
@@ -189,6 +191,19 @@ xcodegen generate
 ```
 
 然后使用 Xcode 打开生成的 `RuanKao.xcodeproj`。
+
+## 8.1 持续集成
+
+- 已内置 GitHub Actions 流水线：`.github/workflows/ios-ci.yml`
+- 触发条件：
+  - push 到 `main`
+  - 向 `main` 发起 Pull Request
+  - 手动触发 `workflow_dispatch`
+- 当前流水线会执行：
+
+```bash
+xcodebuild -project RuanKao.xcodeproj -scheme RuanKao -destination 'generic/platform=iOS Simulator' CODE_SIGNING_ALLOWED=NO build
+```
 
 ## 9.1 联网说明
 
