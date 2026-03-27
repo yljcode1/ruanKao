@@ -10,12 +10,17 @@ struct PracticeView: View {
         preferredMode: PracticeMode = .sequential,
         initialCategory: String? = nil,
         initialYear: Int? = nil,
-        initialSearchText: String? = nil
+        initialSearchText: String? = nil,
+        resumeSessionSnapshot: PracticeSessionSnapshot? = nil
     ) {
+        let effectiveCategory = resumeSessionSnapshot?.category ?? initialCategory
+        let effectiveYear = resumeSessionSnapshot?.year ?? initialYear
+        let effectiveSearchText = resumeSessionSnapshot?.keyword ?? initialSearchText
+
         _isFilterExpanded = State(
-            initialValue: initialCategory != nil
-                || initialYear != nil
-                || !(initialSearchText?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ?? true)
+            initialValue: effectiveCategory != nil
+                || effectiveYear != nil
+                || !(effectiveSearchText?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ?? true)
         )
         _recentActivityStore = ObservedObject(wrappedValue: container.recentActivityStore)
         _viewModel = StateObject(
@@ -23,6 +28,10 @@ struct PracticeView: View {
                 questionRepository: container.questionRepository,
                 progressRepository: container.progressRepository,
                 aiStudyService: container.aiStudyService,
+                practiceSessionStore: container.practiceSessionStore,
+                notifyStudyDataChanged: {
+                    container.studyDataStore.markChanged()
+                },
                 recordRecentSearch: { keyword in
                     container.recentActivityStore.recordSearch(keyword)
                 },
@@ -37,7 +46,8 @@ struct PracticeView: View {
                 preferredMode: preferredMode,
                 initialCategory: initialCategory,
                 initialYear: initialYear,
-                initialSearchText: initialSearchText
+                initialSearchText: initialSearchText,
+                resumeSessionSnapshot: resumeSessionSnapshot
             )
         )
     }
@@ -57,7 +67,7 @@ struct PracticeView: View {
         .navigationTitle(viewModel.selectedMode.title)
         .appScreenChrome()
         .task {
-            viewModel.loadInitialData()
+            viewModel.loadInitialDataIfNeeded()
         }
         .onChange(of: viewModel.searchText) { _, _ in
             viewModel.handleSearchTextChanged()
@@ -203,6 +213,17 @@ struct PracticeView: View {
                     }
                 }
                 .padding(.top, 12)
+
+                if viewModel.isLoadingInitialData {
+                    HStack(spacing: 8) {
+                        ProgressView()
+                            .controlSize(.small)
+                        Text("正在加载年份、章节和收藏状态…")
+                            .font(.footnote)
+                            .foregroundStyle(AppTheme.Colors.textSecondary)
+                    }
+                    .padding(.top, 12)
+                }
             } label: {
                 HStack {
                     VStack(alignment: .leading, spacing: 4) {
@@ -283,7 +304,9 @@ struct PracticeView: View {
 
     @ViewBuilder
     private var contentSection: some View {
-        if let errorMessage = viewModel.errorMessage {
+        if viewModel.isLoadingInitialData || viewModel.isLoadingQuestions {
+            questionSkeletonSection
+        } else if let errorMessage = viewModel.errorMessage {
             StatePanel(
                 title: "题目加载失败",
                 message: errorMessage,
@@ -321,14 +344,40 @@ struct PracticeView: View {
     }
 
     private var finishSection: some View {
-        PrimaryCard {
+        let summary = viewModel.finishSummary
+
+        return PrimaryCard {
             VStack(alignment: .leading, spacing: 14) {
                 Text("这轮练习完成了")
                     .font(.title3.weight(.bold))
                     .foregroundStyle(AppTheme.Colors.textPrimary)
 
-                Text("共答 \(viewModel.answeredCount) 题，当前正确率 \(viewModel.accuracyText)。建议继续做一轮错题重练。")
-                    .foregroundStyle(AppTheme.Colors.textSecondary)
+                Text(
+                    summary.map {
+                        "共答 \($0.answeredCount) 题，正确 \($0.correctCount) 题，正确率 \($0.accuracy.formatted(.percent.precision(.fractionLength(0))))。"
+                    } ?? "共答 \(viewModel.answeredCount) 题，当前正确率 \(viewModel.accuracyText)。"
+                )
+                .foregroundStyle(AppTheme.Colors.textSecondary)
+
+                if let summary {
+                    HStack(spacing: 12) {
+                        sessionMetric(title: "平均耗时", value: "\(max(summary.averageSpentSeconds, 0)) 秒")
+                        sessionMetric(
+                            title: "得分",
+                            value: "\(Int(summary.scoreEarned))/\(Int(summary.totalScore))"
+                        )
+                    }
+
+                    if let gap = summary.wrongKnowledgePoints.first {
+                        Text("最需要补强：\(gap.name)（错 \(gap.wrongCount) 题）")
+                            .font(.footnote.weight(.semibold))
+                            .foregroundStyle(AppTheme.Colors.textPrimary)
+                    }
+
+                    Text(summary.recommendation)
+                        .font(.footnote)
+                        .foregroundStyle(AppTheme.Colors.textSecondary)
+                }
 
                 HStack(spacing: 12) {
                     Button("再来一轮") {
@@ -400,6 +449,11 @@ struct PracticeView: View {
 
             if viewModel.showAnalysis {
                 analysisSection(question)
+
+                if !question.isObjective {
+                    subjectiveNoteSection
+                }
+
                 aiSection(question)
             }
         }
@@ -428,7 +482,7 @@ struct PracticeView: View {
             VStack(alignment: .leading, spacing: 14) {
                 SectionHeader("主观题", subtitle: "建议先自己列提纲，再对照参考答案")
 
-                Text("案例题和论文题更适合先自己写，再对照参考答案自评。完成后可以标记“已掌握”或“需重练”。")
+                Text("案例题和论文题更适合先自己写，再对照参考答案自评。完成后可以标记掌握程度，并补几句自己的复盘。")
                     .font(.subheadline)
                     .foregroundStyle(AppTheme.Colors.textSecondary)
 
@@ -474,6 +528,37 @@ struct PracticeView: View {
                     Text(question.analysis)
                         .foregroundStyle(AppTheme.Colors.textSecondary)
                 }
+            }
+        }
+    }
+
+    private var subjectiveNoteSection: some View {
+        PrimaryCard(style: .subtle) {
+            VStack(alignment: .leading, spacing: 12) {
+                SectionHeader("主观题批注", subtitle: "把自己的复盘记下来，下次更快进入状态")
+
+                if let status = viewModel.currentSubjectiveReviewStatus {
+                    PillTag(
+                        title: status.title,
+                        icon: status.icon,
+                        tint: status.isCorrect ? AppTheme.Colors.primary : AppTheme.Colors.secondary
+                    )
+                }
+
+                TextEditor(text: $viewModel.subjectiveNoteDraft)
+                    .frame(minHeight: 108)
+                    .padding(10)
+                    .background(AppTheme.Colors.background)
+                    .overlay {
+                        RoundedRectangle(cornerRadius: AppTheme.Metrics.compactRadius, style: .continuous)
+                            .stroke(AppTheme.Colors.stroke)
+                    }
+                    .clipShape(RoundedRectangle(cornerRadius: AppTheme.Metrics.compactRadius, style: .continuous))
+
+                Button("保存批注") {
+                    viewModel.saveSubjectiveNote()
+                }
+                .appButton(.secondary)
             }
         }
     }
@@ -565,7 +650,11 @@ struct PracticeView: View {
 
     @ViewBuilder
     private var bottomActionBar: some View {
-        if viewModel.questions.isEmpty || viewModel.finished || viewModel.errorMessage != nil {
+        if viewModel.questions.isEmpty
+            || viewModel.finished
+            || viewModel.errorMessage != nil
+            || viewModel.isLoadingInitialData
+            || viewModel.isLoadingQuestions {
             EmptyView()
         } else if let question = viewModel.currentQuestion {
             VStack(spacing: 10) {
@@ -591,26 +680,18 @@ struct PracticeView: View {
                     }
                     .appButton()
                 } else if viewModel.awaitingSubjectiveAssessment {
-                    HStack(spacing: 12) {
-                        Button {
-                            viewModel.markSubjectiveResult(isCorrect: false)
-                        } label: {
-                            Text("需重练")
-                                .font(.subheadline.weight(.semibold))
-                                .frame(maxWidth: .infinity)
-                                .padding(.vertical, 14)
+                    HStack(spacing: 10) {
+                        ForEach(SubjectiveReviewStatus.allCases) { status in
+                            Button {
+                                viewModel.markSubjectiveResult(status)
+                            } label: {
+                                Text(status.title)
+                                    .font(.subheadline.weight(.semibold))
+                                    .frame(maxWidth: .infinity)
+                                    .padding(.vertical, 14)
+                            }
+                            .appButton(status == .mastered ? .primary : .secondary)
                         }
-                        .appButton(.secondary)
-
-                        Button {
-                            viewModel.markSubjectiveResult(isCorrect: true)
-                        } label: {
-                            Text("已掌握")
-                                .font(.subheadline.weight(.semibold))
-                                .frame(maxWidth: .infinity)
-                                .padding(.vertical, 14)
-                        }
-                        .appButton()
                     }
                 } else {
                     Button {
@@ -632,6 +713,57 @@ struct PracticeView: View {
                 Divider()
             }
         }
+    }
+
+    private var questionSkeletonSection: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            PrimaryCard {
+                VStack(alignment: .leading, spacing: 12) {
+                    HStack(spacing: 8) {
+                        Capsule()
+                            .fill(AppTheme.Colors.muted)
+                            .frame(width: 82, height: 28)
+                        Capsule()
+                            .fill(AppTheme.Colors.muted)
+                            .frame(width: 96, height: 28)
+                    }
+
+                    Text("题目内容加载中，马上给你显示真实题干…")
+                        .font(.title3.weight(.semibold))
+                        .foregroundStyle(AppTheme.Colors.textPrimary)
+                        .redacted(reason: .placeholder)
+
+                    Text("章节 / 年份 / 来源")
+                        .font(.footnote)
+                        .foregroundStyle(AppTheme.Colors.textSecondary)
+                        .redacted(reason: .placeholder)
+                }
+            }
+
+            PrimaryCard(style: .subtle) {
+                VStack(alignment: .leading, spacing: 12) {
+                    Text("示例选项")
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(AppTheme.Colors.textPrimary)
+                        .redacted(reason: .placeholder)
+
+                    ForEach(0..<4, id: \.self) { _ in
+                        HStack(spacing: 12) {
+                            Circle()
+                                .fill(AppTheme.Colors.muted)
+                                .frame(width: 18, height: 18)
+
+                            Text("题目选项占位，加载完成后会替换成真实内容")
+                                .font(.subheadline)
+                                .foregroundStyle(AppTheme.Colors.textPrimary)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .redacted(reason: .placeholder)
+                        }
+                    }
+                }
+            }
+        }
+        .allowsHitTesting(false)
     }
 
     private var progressFraction: Double {

@@ -119,6 +119,13 @@ final class SQLiteQuestionRepository: QuestionRepositoryProtocol, @unchecked Sen
         return try makeQuestions(from: selectedRows)
     }
 
+    func fetchQuestions(questionIDs: [Int64]) throws -> [Question] {
+        guard !questionIDs.isEmpty else { return [] }
+
+        let questionMap = try fetchQuestionMap(questionIDs: questionIDs)
+        return questionIDs.compactMap { questionMap[$0] }
+    }
+
     func fetchSearchSuggestions(keyword: String, limit: Int) throws -> [String] {
         let normalizedKeyword = keyword.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !normalizedKeyword.isEmpty, limit > 0 else { return [] }
@@ -287,6 +294,103 @@ final class SQLiteQuestionRepository: QuestionRepositoryProtocol, @unchecked Sen
                 ids.insert(sqlite3_column_int64(statement, 0))
             }
             return ids
+        }
+    }
+
+    func fetchQuestionAnnotations(questionIDs: [Int64]) throws -> [Int64: QuestionAnnotation] {
+        let uniqueIDs = Array(Set(questionIDs))
+        guard !uniqueIDs.isEmpty else { return [:] }
+
+        let placeholders = Array(repeating: "?", count: uniqueIDs.count).joined(separator: ", ")
+        let bindings = uniqueIDs.map(SQLiteBindingValue.int)
+
+        return try database.read { db in
+            let statement = try prepareStatement(
+                database: db,
+                sql: """
+                SELECT question_id, note, tags, subjective_review, updated_at
+                FROM question_annotations
+                WHERE question_id IN (\(placeholders));
+                """
+            )
+            defer { sqlite3_finalize(statement) }
+            try bind(bindings, to: statement)
+
+            var mapping: [Int64: QuestionAnnotation] = [:]
+
+            while sqlite3_step(statement) == SQLITE_ROW {
+                let questionID = sqlite3_column_int64(statement, 0)
+                let note = columnText(statement, index: 1)
+                let tagsText = columnText(statement, index: 2)
+                let tagsData = Data(tagsText.utf8)
+                let tags = (try? decoder.decode([String].self, from: tagsData)) ?? []
+
+                let subjectiveRawValue: String? = sqlite3_column_type(statement, 3) == SQLITE_NULL
+                    ? nil
+                    : columnText(statement, index: 3)
+                let subjectiveReviewStatus = subjectiveRawValue.flatMap(SubjectiveReviewStatus.init(rawValue:))
+
+                mapping[questionID] = QuestionAnnotation(
+                    questionID: questionID,
+                    note: note,
+                    tags: tags,
+                    subjectiveReviewStatus: subjectiveReviewStatus,
+                    updatedAt: Date(timeIntervalSince1970: sqlite3_column_double(statement, 4))
+                )
+            }
+
+            return mapping
+        }
+    }
+
+    func saveQuestionAnnotation(_ annotation: QuestionAnnotation) throws {
+        try database.write { db in
+            if annotation.isEmpty {
+                let deleteStatement = try prepareStatement(
+                    database: db,
+                    sql: """
+                    DELETE FROM question_annotations
+                    WHERE question_id = ?;
+                    """
+                )
+                defer { sqlite3_finalize(deleteStatement) }
+
+                try bind([.int(annotation.questionID)], to: deleteStatement)
+                guard sqlite3_step(deleteStatement) == SQLITE_DONE else {
+                    throw SQLiteError.stepFailed(database.lastErrorMessage(db))
+                }
+                return
+            }
+
+            let tagsText = String(decoding: try encoder.encode(annotation.tags), as: UTF8.self)
+            let statement = try prepareStatement(
+                database: db,
+                sql: """
+                INSERT INTO question_annotations (question_id, note, tags, subjective_review, updated_at)
+                VALUES (?, ?, ?, ?, ?)
+                ON CONFLICT(question_id) DO UPDATE SET
+                    note = excluded.note,
+                    tags = excluded.tags,
+                    subjective_review = excluded.subjective_review,
+                    updated_at = excluded.updated_at;
+                """
+            )
+            defer { sqlite3_finalize(statement) }
+
+            try bind(
+                [
+                    .int(annotation.questionID),
+                    .text(annotation.note),
+                    .text(tagsText),
+                    annotation.subjectiveReviewStatus.map { .text($0.rawValue) } ?? .null,
+                    .double(annotation.updatedAt.timeIntervalSince1970)
+                ],
+                to: statement
+            )
+
+            guard sqlite3_step(statement) == SQLITE_DONE else {
+                throw SQLiteError.stepFailed(database.lastErrorMessage(db))
+            }
         }
     }
 

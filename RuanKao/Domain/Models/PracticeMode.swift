@@ -47,3 +47,85 @@ enum PracticeMode: String, CaseIterable, Identifiable {
         }
     }
 }
+
+struct PracticeDestination: Hashable {
+    let mode: PracticeMode
+    let category: String?
+    let year: Int?
+    let keyword: String?
+
+    init(mode: PracticeMode, category: String? = nil, year: Int? = nil, keyword: String? = nil) {
+        self.mode = mode
+        self.category = category
+        self.year = year
+        self.keyword = keyword
+    }
+}
+
+struct PracticeAttemptRecord: Codable, Hashable, Identifiable {
+    let questionID: Int64
+    let isCorrect: Bool
+    let spentSeconds: Int
+
+    var id: Int64 { questionID }
+}
+
+struct PracticeSessionSnapshot: Codable, Hashable, Identifiable {
+    let modeRawValue: String
+    let category: String?
+    let year: Int?
+    let keyword: String?
+    let selectedQuestionLimit: Int
+    let questionIDs: [Int64]
+    let currentIndex: Int
+    let answeredCount: Int
+    let correctCount: Int
+    let remainingSeconds: Int
+    let attempts: [PracticeAttemptRecord]
+    let updatedAt: Date
+
+    var id: String { "active_practice_session" }
+
+    var mode: PracticeMode {
+        PracticeMode(rawValue: modeRawValue) ?? .sequential
+    }
+
+    var destination: PracticeDestination {
+        PracticeDestination(mode: mode, category: category, year: year, keyword: keyword)
+    }
+
+    var progressText: String {
+        guard !questionIDs.isEmpty else { return "0 / 0" }
+        return "\(min(currentIndex + 1, questionIDs.count)) / \(questionIDs.count)"
+    }
+
+    var isResumable: Bool {
+        !questionIDs.isEmpty && currentIndex < questionIDs.count
+    }
+
+    var subtitle: String {
+        var parts: [String] = []
+
+        if let year {
+            parts.append("\(year)")
+        }
+
+        if let category {
+            parts.append(category)
+        }
+
+        if let keyword {
+            parts.append("搜：\(keyword)")
+        }
+
+        parts.append("进度 \(progressText)")
+
+        if mode == .mockExam {
+            let minutes = remainingSeconds / 60
+            let seconds = remainingSeconds % 60
+            parts.append(String(format: "剩余 %02d:%02d", minutes, seconds))
+        }
+
+        return parts.joined(separator: " · ")
+    }
+}

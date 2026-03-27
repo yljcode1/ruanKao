@@ -5,6 +5,8 @@ struct DashboardView: View {
     @StateObject private var viewModel: DashboardViewModel
     @ObservedObject private var focusSessionStore: FocusSessionStore
     @ObservedObject private var recentActivityStore: RecentActivityStore
+    @ObservedObject private var practiceSessionStore: PracticeSessionStore
+    @ObservedObject private var studyDataStore: StudyDataStore
     @State private var isSettingsPresented = false
     private let container: AppContainer
     private let gridColumns = [
@@ -16,6 +18,8 @@ struct DashboardView: View {
         self.container = container
         _focusSessionStore = ObservedObject(wrappedValue: container.focusSessionStore)
         _recentActivityStore = ObservedObject(wrappedValue: container.recentActivityStore)
+        _practiceSessionStore = ObservedObject(wrappedValue: container.practiceSessionStore)
+        _studyDataStore = ObservedObject(wrappedValue: container.studyDataStore)
         _viewModel = StateObject(
             wrappedValue: DashboardViewModel(
                 analyticsRepository: container.analyticsRepository,
@@ -28,6 +32,9 @@ struct DashboardView: View {
         ScrollView(showsIndicators: false) {
             VStack(alignment: .leading, spacing: AppTheme.Metrics.listSectionSpacing) {
                 overviewSection
+                if let resumeSnapshot = practiceSessionStore.resumableSession {
+                    continueSessionSection(snapshot: resumeSnapshot)
+                }
                 practiceEntrySection
                 if !recentActivityStore.recentSessions.isEmpty {
                     recentPracticeSection
@@ -50,10 +57,13 @@ struct DashboardView: View {
         .navigationTitle("软考架构师")
         .appScreenChrome()
         .task {
-            viewModel.load()
+            viewModel.loadIfNeeded()
         }
         .refreshable {
-            viewModel.load()
+            viewModel.load(force: true)
+        }
+        .onReceive(studyDataStore.$revision.dropFirst()) { _ in
+            viewModel.load(force: true)
         }
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
@@ -70,6 +80,74 @@ struct DashboardView: View {
                 .presentationDragIndicator(.visible)
                 .presentationCornerRadius(28)
                 .presentationBackground(AppTheme.Colors.background)
+        }
+    }
+
+    private func continueSessionSection(snapshot: PracticeSessionSnapshot) -> some View {
+        VStack(alignment: .leading, spacing: 14) {
+            SectionHeader("继续练习", subtitle: "自动保存未完成进度，回来可直接接着做")
+
+            PrimaryCard(style: .subtle) {
+                VStack(alignment: .leading, spacing: 14) {
+                    NavigationLink {
+                        PracticeView(container: container, resumeSessionSnapshot: snapshot)
+                    } label: {
+                        HStack(alignment: .top, spacing: 14) {
+                            Image(systemName: snapshot.mode.icon)
+                                .font(.title3.weight(.semibold))
+                                .foregroundStyle(AppTheme.Colors.primary)
+                                .frame(width: 44, height: 44)
+                                .background(AppTheme.Colors.muted)
+                                .clipShape(RoundedRectangle(cornerRadius: AppTheme.Metrics.compactRadius, style: .continuous))
+
+                            VStack(alignment: .leading, spacing: 8) {
+                                Text("继续 \(snapshot.mode.title)")
+                                    .font(.headline.weight(.semibold))
+                                    .foregroundStyle(AppTheme.Colors.textPrimary)
+
+                                Text(snapshot.subtitle)
+                                    .font(.footnote)
+                                    .foregroundStyle(AppTheme.Colors.textSecondary)
+                                    .fixedSize(horizontal: false, vertical: true)
+                            }
+
+                            Spacer(minLength: 0)
+
+                            Image(systemName: "chevron.right")
+                                .font(.footnote.weight(.semibold))
+                                .foregroundStyle(AppTheme.Colors.textTertiary)
+                        }
+                    }
+                    .buttonStyle(.plain)
+
+                    HStack(spacing: 10) {
+                        PillTag(
+                            title: "已答 \(snapshot.answeredCount) / \(snapshot.questionIDs.count)",
+                            icon: "chart.bar.doc.horizontal",
+                            tint: AppTheme.Colors.secondary
+                        )
+
+                        if snapshot.mode == .mockExam {
+                            PillTag(
+                                title: "剩余 \(formattedFocusTime(snapshot.remainingSeconds))",
+                                icon: "timer",
+                                tint: AppTheme.Colors.primary,
+                                filled: true
+                            )
+                        }
+
+                        Spacer(minLength: 0)
+
+                        recentPracticeActionButton(
+                            title: "放弃本轮",
+                            icon: "trash",
+                            tint: AppTheme.Colors.danger
+                        ) {
+                            practiceSessionStore.clear()
+                        }
+                    }
+                }
+            }
         }
     }
 
@@ -123,7 +201,7 @@ struct DashboardView: View {
                 tint: AppTheme.Colors.danger
             ) {
                 Button("重新加载") {
-                    viewModel.load()
+                    viewModel.load(force: true)
                 }
                 .appButton()
             }
@@ -408,15 +486,31 @@ struct DashboardView: View {
                         subtitle: viewModel.studyPlan.first?.title ?? "系统会按你的薄弱点自动给建议"
                     )
 
-                    insightRow(
-                        title: "今日建议",
-                        value: viewModel.studyPlan.first?.subtitle ?? "先做几题，系统会继续补全学习建议。"
-                    )
+                    if let firstTask = viewModel.studyPlan.first {
+                        practiceShortcutRow(
+                            title: "今日建议",
+                            value: firstTask.subtitle,
+                            destination: firstTask.destination
+                        )
+                    } else {
+                        insightRow(
+                            title: "今日建议",
+                            value: "先做几题，系统会继续补全学习建议。"
+                        )
+                    }
 
-                    insightRow(
-                        title: "当前薄弱点",
-                        value: snapshot.weakKnowledgePoints.first?.name ?? "暂无，继续保持当前节奏。"
-                    )
+                    if let weakestPoint = snapshot.weakKnowledgePoints.first {
+                        practiceShortcutRow(
+                            title: "当前薄弱点",
+                            value: weakestPoint.name,
+                            destination: PracticeDestination(mode: .random, keyword: weakestPoint.name)
+                        )
+                    } else {
+                        insightRow(
+                            title: "当前薄弱点",
+                            value: "暂无，继续保持当前节奏。"
+                        )
+                    }
 
                     HStack(spacing: 12) {
                         miniStat(title: "连续学习", value: "\(snapshot.currentStreak) 天")
@@ -435,20 +529,29 @@ struct DashboardView: View {
                                 .foregroundStyle(AppTheme.Colors.textPrimary)
 
                             ForEach(Array(snapshot.weakKnowledgePoints.prefix(3))) { item in
-                                VStack(alignment: .leading, spacing: 6) {
-                                    HStack {
-                                        Text(item.name)
-                                            .font(.footnote.weight(.medium))
-                                            .foregroundStyle(AppTheme.Colors.textPrimary)
-                                        Spacer()
-                                        Text(item.accuracy.formatted(.percent.precision(.fractionLength(0))))
-                                            .font(.footnote.weight(.semibold))
-                                            .foregroundStyle(weakPointColor(for: item.accuracy))
-                                    }
+                                NavigationLink {
+                                    PracticeView(
+                                        container: container,
+                                        preferredMode: .random,
+                                        initialSearchText: item.name
+                                    )
+                                } label: {
+                                    VStack(alignment: .leading, spacing: 6) {
+                                        HStack {
+                                            Text(item.name)
+                                                .font(.footnote.weight(.medium))
+                                                .foregroundStyle(AppTheme.Colors.textPrimary)
+                                            Spacer()
+                                            Text(item.accuracy.formatted(.percent.precision(.fractionLength(0))))
+                                                .font(.footnote.weight(.semibold))
+                                                .foregroundStyle(weakPointColor(for: item.accuracy))
+                                        }
 
-                                    ProgressView(value: item.accuracy)
-                                        .tint(weakPointColor(for: item.accuracy))
+                                        ProgressView(value: item.accuracy)
+                                            .tint(weakPointColor(for: item.accuracy))
+                                    }
                                 }
+                                .buttonStyle(.plain)
                             }
                         }
                     }
@@ -642,6 +745,38 @@ struct DashboardView: View {
         }
     }
 
+    private func practiceShortcutRow(
+        title: String,
+        value: String,
+        destination: PracticeDestination
+    ) -> some View {
+        NavigationLink {
+            PracticeView(
+                container: container,
+                preferredMode: destination.mode,
+                initialCategory: destination.category,
+                initialYear: destination.year,
+                initialSearchText: destination.keyword
+            )
+        } label: {
+            HStack(spacing: 12) {
+                insightRow(title: title, value: value)
+                Spacer(minLength: 0)
+                Image(systemName: "chevron.right")
+                    .font(.footnote.weight(.semibold))
+                    .foregroundStyle(AppTheme.Colors.textTertiary)
+            }
+            .padding(14)
+            .background(AppTheme.Colors.card)
+            .overlay {
+                RoundedRectangle(cornerRadius: AppTheme.Metrics.controlRadius, style: .continuous)
+                    .stroke(AppTheme.Colors.stroke)
+            }
+            .clipShape(RoundedRectangle(cornerRadius: AppTheme.Metrics.controlRadius, style: .continuous))
+        }
+        .buttonStyle(.plain)
+    }
+
     private func miniStat(title: String, value: String) -> some View {
         VStack(alignment: .leading, spacing: 4) {
             Text(title)
@@ -696,10 +831,10 @@ private struct TopicLibraryView: View {
         .navigationTitle("专题题库")
         .appScreenChrome()
         .task {
-            viewModel.load()
+            viewModel.loadIfNeeded()
         }
         .refreshable {
-            viewModel.load()
+            viewModel.load(force: true)
         }
     }
 
@@ -715,9 +850,18 @@ private struct TopicLibraryView: View {
                     .foregroundStyle(AppTheme.Colors.textSecondary)
 
                 HStack(spacing: 12) {
-                    topicStat(title: "专题数", value: "\(viewModel.summaries.count)")
-                    topicStat(title: "题量", value: "\(viewModel.totalQuestions)")
-                    topicStat(title: "最新年份", value: "\(viewModel.latestYear)")
+                    topicStat(
+                        title: "专题数",
+                        value: viewModel.isLoading && viewModel.summaries.isEmpty ? "--" : "\(viewModel.summaries.count)"
+                    )
+                    topicStat(
+                        title: "题量",
+                        value: viewModel.isLoading && viewModel.summaries.isEmpty ? "--" : "\(viewModel.totalQuestions)"
+                    )
+                    topicStat(
+                        title: "最新年份",
+                        value: viewModel.isLoading && viewModel.summaries.isEmpty ? "--" : "\(viewModel.latestYear)"
+                    )
                 }
             }
         }
@@ -725,7 +869,16 @@ private struct TopicLibraryView: View {
 
     @ViewBuilder
     private var contentSection: some View {
-        if let errorMessage = viewModel.errorMessage {
+        if viewModel.isLoading && viewModel.summaries.isEmpty {
+            StatePanel(
+                title: "正在加载专题题库",
+                message: "正在汇总全部专题和题量信息。",
+                icon: "clock.arrow.circlepath"
+            ) {
+                ProgressView()
+                    .tint(AppTheme.Colors.primary)
+            }
+        } else if let errorMessage = viewModel.errorMessage {
             StatePanel(
                 title: "专题题库加载失败",
                 message: errorMessage,
@@ -733,7 +886,7 @@ private struct TopicLibraryView: View {
                 tint: AppTheme.Colors.danger
             ) {
                 Button("重新加载") {
-                    viewModel.load()
+                    viewModel.load(force: true)
                 }
                 .appButton()
             }
@@ -827,12 +980,19 @@ private struct TopicLibraryView: View {
 @MainActor
 private final class TopicLibraryViewModel: ObservableObject {
     @Published private(set) var summaries: [TopicSummary] = []
+    @Published private(set) var isLoading = false
     @Published var errorMessage: String?
 
     private let questionRepository: QuestionRepositoryProtocol
+    private var loadTask: Task<Void, Never>?
+    private var hasLoaded = false
 
     init(questionRepository: QuestionRepositoryProtocol) {
         self.questionRepository = questionRepository
+    }
+
+    deinit {
+        loadTask?.cancel()
     }
 
     var totalQuestions: Int {
@@ -843,12 +1003,38 @@ private final class TopicLibraryViewModel: ObservableObject {
         summaries.map(\.latestYear).max() ?? 0
     }
 
-    func load() {
-        do {
-            errorMessage = nil
-            summaries = try questionRepository.fetchTopicSummaries(limit: nil)
-        } catch {
-            errorMessage = error.localizedDescription
+    func loadIfNeeded() {
+        guard !hasLoaded, !isLoading else { return }
+        load(force: false)
+    }
+
+    func load(force: Bool = false) {
+        guard force || !hasLoaded else { return }
+        loadTask?.cancel()
+        isLoading = true
+        errorMessage = nil
+
+        let repository = questionRepository
+        loadTask = Task { [weak self] in
+            let result = await Task.detached(priority: .userInitiated) { () -> Result<[TopicSummary], Error> in
+                do {
+                    return .success(try repository.fetchTopicSummaries(limit: nil))
+                } catch {
+                    return .failure(error)
+                }
+            }.value
+
+            guard let self, !Task.isCancelled else { return }
+
+            self.isLoading = false
+
+            switch result {
+            case .success(let summaries):
+                self.hasLoaded = true
+                self.summaries = summaries
+            case .failure(let error):
+                self.errorMessage = error.localizedDescription
+            }
         }
     }
 }
