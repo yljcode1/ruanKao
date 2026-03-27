@@ -23,6 +23,7 @@ targets:
         UIApplicationSupportsIndirectInputEvents: true
         LSRequiresIPhoneOS: true
         AIServiceEndpoint: ""
+        AIServiceModel: ""
         AIServiceToken: ""
         UISupportedInterfaceOrientations:
           - UIInterfaceOrientationPortrait

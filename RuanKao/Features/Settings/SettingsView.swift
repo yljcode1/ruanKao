@@ -5,11 +5,13 @@ struct SettingsView: View {
     @Environment(\.dismiss) private var dismiss
     @State private var aiEndpoint: String
     @State private var aiToken: String
+    @State private var aiModel: String
     @State private var aiMessage: String?
 
     init() {
         _aiEndpoint = State(initialValue: AppConfiguration.aiServiceEndpointString)
         _aiToken = State(initialValue: AppConfiguration.aiServiceToken ?? "")
+        _aiModel = State(initialValue: AppConfiguration.aiServiceModel ?? "")
     }
 
     private var appearanceMode: AppearanceMode {
@@ -163,8 +165,9 @@ struct SettingsView: View {
 
                 settingsField(
                     title: "接口地址",
-                    placeholder: "https://your-domain.com/api/ai-study",
-                    text: $aiEndpoint
+                    placeholder: "https://api.openai.com/v1 或你的自定义接口",
+                    text: $aiEndpoint,
+                    keyboardType: .URL
                 )
 
                 settingsField(
@@ -174,11 +177,20 @@ struct SettingsView: View {
                     secure: true
                 )
 
+                settingsField(
+                    title: "模型（可选）",
+                    placeholder: "gpt-4.1-mini / deepseek-chat",
+                    text: $aiModel
+                )
+
                 VStack(alignment: .leading, spacing: 6) {
                     Text("当前令牌：\(AppConfiguration.maskedTokenDescription(for: AppConfiguration.aiServiceToken))")
                         .font(.footnote)
                         .foregroundStyle(AppTheme.Colors.textSecondary)
-                    Text("远程接口需支持 HTTPS `POST`，请求体包含 `style` 和 `question`，返回 `title / summary / highlights / nextAction / source`。")
+                    Text("远程接口需支持 HTTPS `POST`，请求体包含 `style` 和 `question`，返回 `title / summary / highlights / nextAction / source`。如果你填的是 `Bearer xxx` 会原样发送；如果只填 Key，系统会自动补 `Bearer `。")
+                        .font(.footnote)
+                        .foregroundStyle(AppTheme.Colors.textSecondary)
+                    Text("现在已支持两种方式：1）自定义接口；2）直接填写 OpenAI / DeepSeek 兼容地址。OpenAI 默认模型是 `gpt-4.1-mini`，DeepSeek 默认模型是 `deepseek-chat`。")
                         .font(.footnote)
                         .foregroundStyle(AppTheme.Colors.textSecondary)
                 }
@@ -222,7 +234,8 @@ struct SettingsView: View {
         title: String,
         placeholder: String,
         text: Binding<String>,
-        secure: Bool = false
+        secure: Bool = false,
+        keyboardType: UIKeyboardType = .default
     ) -> some View {
         VStack(alignment: .leading, spacing: 8) {
             Text(title)
@@ -236,7 +249,7 @@ struct SettingsView: View {
                         .autocorrectionDisabled()
                 } else {
                     TextField(placeholder, text: text)
-                        .keyboardType(.URL)
+                        .keyboardType(keyboardType)
                         .textInputAutocapitalization(.never)
                         .autocorrectionDisabled()
                 }
@@ -255,9 +268,10 @@ struct SettingsView: View {
 
     private func saveAISettings() {
         do {
-            try AppConfiguration.saveAIService(endpoint: aiEndpoint, token: aiToken)
+            try AppConfiguration.saveAIService(endpoint: aiEndpoint, token: aiToken, model: aiModel)
             aiEndpoint = AppConfiguration.aiServiceEndpointString
             aiToken = AppConfiguration.aiServiceToken ?? ""
+            aiModel = AppConfiguration.aiServiceModel ?? ""
             aiMessage = remoteAIEnabled ? "已保存，下次点击 AI 助手就会联网。" : "已保存为空配置，当前继续使用离线模式。"
         } catch {
             aiMessage = error.localizedDescription
@@ -269,6 +283,7 @@ struct SettingsView: View {
             try AppConfiguration.resetAIServiceOverrides()
             aiEndpoint = AppConfiguration.aiServiceEndpointString
             aiToken = AppConfiguration.aiServiceToken ?? ""
+            aiModel = AppConfiguration.aiServiceModel ?? ""
             aiMessage = AppConfiguration.isRemoteAIEnabled ? "已恢复到内置远程配置。" : "已切回离线模式。"
         } catch {
             aiMessage = error.localizedDescription

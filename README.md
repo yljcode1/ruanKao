@@ -213,11 +213,17 @@ xcodebuild -project RuanKao.xcodeproj -scheme RuanKao -destination 'generic/plat
 - 你可以在 App 内 `设置 -> AI 联网` 直接填写远程接口地址
 - 如果不填，系统会自动回退到本地 AI 模拟，不影响刷题
 - 建议使用 `HTTPS POST`
-- 当前远程接口入参为：
+- 支持两种接入方式：
+  - 自定义接口：直接接收下面这份 JSON
+  - OpenAI / DeepSeek 兼容接口：地址可填 `https://api.openai.com/v1`、`https://api.openai.com/v1/chat/completions`、`https://api.deepseek.com/v1`
+- 如果使用 OpenAI / DeepSeek：
+  - Token 填你自己的 API Key
+  - 模型可选；不填时，OpenAI 默认 `gpt-4.1-mini`，DeepSeek 默认 `deepseek-chat`
+- 当前自定义接口入参为：
 
 ```json
 {
-  "style": "explain",
+  "style": "explanation",
   "question": { }
 }
 ```

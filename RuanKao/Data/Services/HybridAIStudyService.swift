@@ -13,7 +13,10 @@ final class HybridAIStudyService: AIStudyServiceProtocol {
         do {
             return try await remote.generateInsight(for: question, style: style)
         } catch {
-            return try await fallback.generateInsight(for: question, style: style)
+            if case RemoteAIServiceError.notConfigured = error {
+                return try await fallback.generateInsight(for: question, style: style)
+            }
+            throw error
         }
     }
 }

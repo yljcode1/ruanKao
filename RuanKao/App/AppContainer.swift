@@ -36,7 +36,8 @@ final class AppContainer: ObservableObject {
                     configurationProvider: {
                         RemoteAIServiceConfiguration(
                             endpoint: AppConfiguration.aiServiceEndpoint,
-                            bearerToken: AppConfiguration.aiServiceToken
+                            bearerToken: AppConfiguration.aiServiceToken,
+                            model: AppConfiguration.aiServiceModel
                         )
                     }
                 )

@@ -118,6 +118,21 @@ App 首页 -> 右上角设置 -> AI 联网
 
 1. `接口地址`：建议填 `HTTPS` 地址
 2. `访问令牌`：如果你的 AI 服务需要鉴权就填，不需要可以留空
+3. `模型（可选）`：如果你接 OpenAI / DeepSeek 兼容接口，建议填模型名；不填时 OpenAI 默认 `gpt-4.1-mini`，DeepSeek 默认 `deepseek-chat`
+
+常见填写方式：
+
+- OpenAI：
+  - `接口地址`：`https://api.openai.com/v1`
+  - `访问令牌`：你的 OpenAI API Key
+  - `模型（可选）`：`gpt-4.1-mini`
+- DeepSeek：
+  - `接口地址`：`https://api.deepseek.com/v1`
+  - `访问令牌`：你的 DeepSeek API Key
+  - `模型（可选）`：`deepseek-chat`
+- 自定义接口：
+  - 填你自己的服务地址
+  - 请求体需兼容本 App 的 `style + question`
 
 说明：
 

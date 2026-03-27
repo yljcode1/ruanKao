@@ -3,6 +3,7 @@ import Foundation
 enum AppConfiguration {
     private static let aiServiceEndpointKey = "ai_service_endpoint"
     private static let aiServiceTokenKey = "ai_service_token"
+    private static let aiServiceModelKey = "ai_service_model"
     private static let keychain = KeychainStore(
         service: Bundle.main.bundleIdentifier ?? "com.codexdemo.ruankao"
     )
@@ -26,13 +27,21 @@ enum AppConfiguration {
         return sanitized(Bundle.main.object(forInfoDictionaryKey: "AIServiceToken") as? String)
     }
 
+    static var aiServiceModel: String? {
+        if let customValue = sanitized(UserDefaults.standard.string(forKey: aiServiceModelKey)) {
+            return customValue
+        }
+        return sanitized(Bundle.main.object(forInfoDictionaryKey: "AIServiceModel") as? String)
+    }
+
     static var isRemoteAIEnabled: Bool {
         aiServiceEndpoint != nil
     }
 
-    static func saveAIService(endpoint: String, token: String) throws {
+    static func saveAIService(endpoint: String, token: String, model: String) throws {
         let sanitizedEndpoint = sanitized(endpoint)
         let sanitizedToken = sanitized(token)
+        let sanitizedModel = sanitized(model)
 
         if let sanitizedEndpoint {
             UserDefaults.standard.set(sanitizedEndpoint, forKey: aiServiceEndpointKey)
@@ -45,10 +54,17 @@ enum AppConfiguration {
         } else {
             try keychain.removeValue(forKey: aiServiceTokenKey)
         }
+
+        if let sanitizedModel {
+            UserDefaults.standard.set(sanitizedModel, forKey: aiServiceModelKey)
+        } else {
+            UserDefaults.standard.removeObject(forKey: aiServiceModelKey)
+        }
     }
 
     static func resetAIServiceOverrides() throws {
         UserDefaults.standard.removeObject(forKey: aiServiceEndpointKey)
+        UserDefaults.standard.removeObject(forKey: aiServiceModelKey)
         try keychain.removeValue(forKey: aiServiceTokenKey)
     }
 

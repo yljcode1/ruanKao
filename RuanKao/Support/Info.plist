@@ -4,6 +4,8 @@
 <dict>
 	<key>AIServiceEndpoint</key>
 	<string></string>
+	<key>AIServiceModel</key>
+	<string></string>
 	<key>AIServiceToken</key>
 	<string></string>
 	<key>CFBundleDevelopmentRegion</key>
