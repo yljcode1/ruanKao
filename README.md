@@ -196,8 +196,8 @@ xcodegen generate
 
 - 已内置 GitHub Actions 流水线：`.github/workflows/ios-ci.yml`
 - 触发条件：
-  - push 到 `main`
-  - 向 `main` 发起 Pull Request
+  - push 到 `master` / `develop` / `test` 及各类工作分支
+  - 向 `master` / `develop` / `test` 发起 Pull Request
   - 手动触发 `workflow_dispatch`
 - 当前流水线会执行：
 
