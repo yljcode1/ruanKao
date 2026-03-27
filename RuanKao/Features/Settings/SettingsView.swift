@@ -166,7 +166,7 @@ struct SettingsView: View {
 
                 settingsField(
                     title: "接口地址",
-                    placeholder: "https://api.openai.com/v1 或你的自定义接口",
+                    placeholder: "https://aixj.vip / https://api.openai.com/v1",
                     text: $aiEndpoint,
                     keyboardType: .URL
                 )
@@ -180,7 +180,7 @@ struct SettingsView: View {
 
                 settingsField(
                     title: "模型（可选）",
-                    placeholder: "gpt-4.1-mini / deepseek-chat",
+                    placeholder: "gpt-5.4 / gpt-4.1-mini / deepseek-chat",
                     text: $aiModel
                 )
 
@@ -191,7 +191,10 @@ struct SettingsView: View {
                     Text("远程接口需支持 HTTPS `POST`，请求体包含 `style` 和 `question`，返回 `title / summary / highlights / nextAction / source`。如果你填的是 `Bearer xxx` 会原样发送；如果只填 Key，系统会自动补 `Bearer `。")
                         .font(.footnote)
                         .foregroundStyle(AppTheme.Colors.textSecondary)
-                    Text("现在已支持两种方式：1）自定义接口；2）直接填写 OpenAI / DeepSeek 兼容地址。OpenAI 默认模型是 `gpt-4.1-mini`，DeepSeek 默认模型是 `deepseek-chat`。")
+                    Text("现在已支持三种方式：1）自定义接口；2）OpenAI / DeepSeek `chat/completions`；3）`Responses API` 中转站。像 `https://aixj.vip` 这类 `wire_api = responses` 的地址，可以直接填根地址，再把模型填成 `gpt-5.4`。")
+                        .font(.footnote)
+                        .foregroundStyle(AppTheme.Colors.textSecondary)
+                    Text("如果你的中转站走 `chat/completions`，建议填完整接口如 `/v1/chat/completions`；如果走 `responses`，可直接填根地址、`/v1` 或完整 `/v1/responses`。")
                         .font(.footnote)
                         .foregroundStyle(AppTheme.Colors.textSecondary)
                 }

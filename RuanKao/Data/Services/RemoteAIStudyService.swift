@@ -35,6 +35,7 @@ enum RemoteAIServiceError: LocalizedError {
 final class RemoteAIStudyService: AIStudyServiceProtocol {
     private enum EndpointProtocol {
         case custom
+        case responses
         case openAICompatible
     }
 
@@ -72,6 +73,18 @@ final class RemoteAIStudyService: AIStudyServiceProtocol {
         }
 
         let choices: [Choice]
+    }
+
+    private struct ResponsesAPIRequest: Encodable {
+        struct Reasoning: Encodable {
+            let effort: String
+        }
+
+        let model: String
+        let instructions: String
+        let input: String
+        let store: Bool
+        let reasoning: Reasoning?
     }
 
     private let configurationProvider: () -> RemoteAIServiceConfiguration
@@ -116,6 +129,14 @@ final class RemoteAIStudyService: AIStudyServiceProtocol {
             return try await generateViaCustomEndpoint(
                 endpoint: endpoint,
                 token: configuration.bearerToken,
+                question: question,
+                style: style
+            )
+        case .responses:
+            return try await generateViaResponsesEndpoint(
+                endpoint: endpoint,
+                token: configuration.bearerToken,
+                model: configuration.model,
                 question: question,
                 style: style
             )
@@ -180,6 +201,55 @@ final class RemoteAIStudyService: AIStudyServiceProtocol {
             highlights: decoded.highlights,
             nextAction: decoded.nextAction,
             source: decoded.source ?? "远程 AI"
+        )
+    }
+
+    private func generateViaResponsesEndpoint(
+        endpoint: URL,
+        token: String?,
+        model: String?,
+        question: Question,
+        style: AIInsightStyle
+    ) async throws -> AIStudyInsight {
+        let resolvedEndpoint = resolvedResponsesEndpoint(from: endpoint)
+        let resolvedModel = try resolvedModel(for: model, endpoint: endpoint)
+
+        var request = URLRequest(url: resolvedEndpoint)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        if let token = sanitized(token) {
+            request.setValue(authorizationHeaderValue(for: token), forHTTPHeaderField: "Authorization")
+        }
+
+        let requestBody = ResponsesAPIRequest(
+            model: resolvedModel,
+            instructions: systemPrompt,
+            input: userPrompt(for: question, style: style),
+            store: false,
+            reasoning: defaultResponsesReasoning(for: resolvedModel).map(ResponsesAPIRequest.Reasoning.init)
+        )
+        request.httpBody = try JSONEncoder().encode(requestBody)
+
+        let (data, response) = try await performRequest(request)
+        try validateHTTPResponse(response, data: data)
+
+        if let directResponse = try? JSONDecoder().decode(ResponseBody.self, from: data) {
+            return AIStudyInsight(
+                title: directResponse.title,
+                summary: directResponse.summary,
+                highlights: directResponse.highlights,
+                nextAction: directResponse.nextAction,
+                source: directResponse.source ?? sourceLabel(for: endpoint, model: resolvedModel)
+            )
+        }
+
+        guard let content = extractedResponsesText(from: data) else {
+            throw RemoteAIServiceError.badServerResponse(bodySnippet(from: data))
+        }
+
+        return try decodeInsight(
+            from: content,
+            fallbackSource: sourceLabel(for: endpoint, model: resolvedModel)
         )
     }
 
@@ -320,7 +390,14 @@ final class RemoteAIStudyService: AIStudyServiceProtocol {
     }
 
     private func endpointProtocol(for configuration: RemoteAIServiceConfiguration, endpoint: URL) -> EndpointProtocol {
-        if sanitized(configuration.model) != nil {
+        let path = endpoint.path.lowercased()
+        let hasModel = sanitized(configuration.model) != nil
+
+        if path.contains("/responses") {
+            return .responses
+        }
+
+        if path.contains("/chat/completions") {
             return .openAICompatible
         }
 
@@ -329,11 +406,38 @@ final class RemoteAIStudyService: AIStudyServiceProtocol {
             return .openAICompatible
         }
 
-        if endpoint.path.lowercased().contains("/chat/completions") {
+        if hasModel, isLikelyResponsesBaseEndpoint(endpoint) {
+            return .responses
+        }
+
+        if hasModel {
             return .openAICompatible
         }
 
         return .custom
+    }
+
+    private func resolvedResponsesEndpoint(from endpoint: URL) -> URL {
+        let path = endpoint.path.lowercased()
+        if path.contains("/responses") {
+            return endpoint
+        }
+
+        guard var components = URLComponents(url: endpoint, resolvingAgainstBaseURL: false) else {
+            return endpoint
+        }
+
+        if components.path.isEmpty || components.path == "/" {
+            components.path = "/v1/responses"
+        } else if components.path.hasSuffix("/v1") {
+            components.path += "/responses"
+        } else if components.path.hasSuffix("/v1/") {
+            components.path += "responses"
+        } else {
+            components.path += components.path.hasSuffix("/") ? "responses" : "/responses"
+        }
+
+        return components.url ?? endpoint
     }
 
     private func resolvedOpenAICompatibleEndpoint(from endpoint: URL) -> URL {
@@ -372,7 +476,7 @@ final class RemoteAIStudyService: AIStudyServiceProtocol {
             return "deepseek-chat"
         }
 
-        throw RemoteAIServiceError.requestFailed("OpenAI 兼容接口需要填写模型名称。")
+        throw RemoteAIServiceError.requestFailed("当前 AI 接口需要填写模型名称。")
     }
 
     private func sourceLabel(for endpoint: URL, model: String) -> String {
@@ -384,6 +488,72 @@ final class RemoteAIStudyService: AIStudyServiceProtocol {
             return "DeepSeek · \(model)"
         }
         return "远程 AI · \(model)"
+    }
+
+    private func isLikelyResponsesBaseEndpoint(_ endpoint: URL) -> Bool {
+        let path = endpoint.path.lowercased()
+        return path.isEmpty || path == "/" || path == "/v1" || path == "/v1/"
+    }
+
+    private func defaultResponsesReasoning(for model: String) -> String? {
+        let normalizedModel = model.lowercased()
+        if normalizedModel.hasPrefix("gpt-5") {
+            return "xhigh"
+        }
+        return nil
+    }
+
+    private func extractedResponsesText(from data: Data) -> String? {
+        guard let jsonObject = try? JSONSerialization.jsonObject(with: data),
+              let object = jsonObject as? [String: Any]
+        else {
+            return nil
+        }
+
+        if let directText = sanitized(object["output_text"] as? String) {
+            return directText
+        }
+
+        if let output = object["output"] as? [[String: Any]] {
+            let texts = output.compactMap { outputItem in
+                if let content = outputItem["content"] as? [[String: Any]] {
+                    let segments = content.compactMap { contentItem -> String? in
+                        if let text = sanitized(contentItem["text"] as? String) {
+                            return text
+                        }
+                        if let value = sanitized(contentItem["content"] as? String) {
+                            return value
+                        }
+                        return nil
+                    }
+
+                    if !segments.isEmpty {
+                        return segments.joined(separator: "\n")
+                    }
+                }
+
+                if let text = sanitized(outputItem["text"] as? String) {
+                    return text
+                }
+
+                return nil
+            }
+
+            if !texts.isEmpty {
+                return texts.joined(separator: "\n")
+            }
+        }
+
+        if let choices = object["choices"] as? [[String: Any]] {
+            for choice in choices {
+                if let message = choice["message"] as? [String: Any],
+                   let content = sanitized(message["content"] as? String) {
+                    return content
+                }
+            }
+        }
+
+        return nil
     }
 
     private func normalizedJSONPayload(from content: String) -> String {

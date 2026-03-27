@@ -118,7 +118,7 @@ App 首页 -> 右上角设置 -> AI 联网
 
 1. `接口地址`：建议填 `HTTPS` 地址
 2. `访问令牌`：如果你的 AI 服务需要鉴权就填，不需要可以留空
-3. `模型（可选）`：如果你接 OpenAI / DeepSeek 兼容接口，建议填模型名；不填时 OpenAI 默认 `gpt-4.1-mini`，DeepSeek 默认 `deepseek-chat`
+3. `模型（可选）`：如果你接 OpenAI / DeepSeek / `Responses API` 兼容接口，建议填模型名；不填时 OpenAI 默认 `gpt-4.1-mini`，DeepSeek 默认 `deepseek-chat`
 
 常见填写方式：
 
@@ -130,6 +130,11 @@ App 首页 -> 右上角设置 -> AI 联网
   - `接口地址`：`https://api.deepseek.com/v1`
   - `访问令牌`：你的 DeepSeek API Key
   - `模型（可选）`：`deepseek-chat`
+- `Responses API` 中转站（例如 `wire_api = responses`）：
+  - `接口地址`：`https://aixj.vip`
+  - `访问令牌`：你的中转站 Key
+  - `模型（可选）`：`gpt-5.4`
+  - 也支持填写 `https://aixj.vip/v1` 或完整 `https://aixj.vip/v1/responses`
 - 自定义接口：
   - 填你自己的服务地址
   - 请求体需兼容本 App 的 `style + question`
@@ -140,6 +145,7 @@ App 首页 -> 右上角设置 -> AI 联网
 - 联网主要用于 AI 讲解、AI 相似题、AI 提纲
 - 不配置接口也能正常用，系统会自动退回本地 AI 模拟结果
 - 填完后可以先点 App 内的 `测试连接`，成功后再点 `保存配置`
+- 如果你的中转站走 `chat/completions`，建议直接填完整 `/v1/chat/completions`
 
 ## 常见问题
 
