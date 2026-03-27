@@ -296,9 +296,7 @@ final class RemoteAIStudyService: AIStudyServiceProtocol {
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.setValue("application/json", forHTTPHeaderField: "Accept")
-        if let token = sanitized(token) {
-            request.setValue(authorizationHeaderValue(for: token), forHTTPHeaderField: "Authorization")
-        }
+        applyOpenAICompatibleAuthHeaders(to: &request, token: token)
         request.httpBody = try JSONEncoder().encode(requestBody)
 
         let (data, response) = try await performRequest(request)
@@ -376,9 +374,7 @@ final class RemoteAIStudyService: AIStudyServiceProtocol {
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.setValue("application/json", forHTTPHeaderField: "Accept")
-        if let token = sanitized(token) {
-            request.setValue(authorizationHeaderValue(for: token), forHTTPHeaderField: "Authorization")
-        }
+        applyOpenAICompatibleAuthHeaders(to: &request, token: token)
 
         let requestBody = OpenAIChatRequest(
             model: resolvedModel,
@@ -927,6 +923,29 @@ final class RemoteAIStudyService: AIStudyServiceProtocol {
             return trimmed
         }
         return "Bearer \(trimmed)"
+    }
+
+    private func applyOpenAICompatibleAuthHeaders(to request: inout URLRequest, token: String?) {
+        guard let token = sanitized(token) else { return }
+
+        request.setValue(authorizationHeaderValue(for: token), forHTTPHeaderField: "Authorization")
+
+        guard let rawAPIKey = rawAPIKeyValue(from: token) else { return }
+        request.setValue(rawAPIKey, forHTTPHeaderField: "x-api-key")
+        request.setValue(rawAPIKey, forHTTPHeaderField: "x-goog-api-key")
+    }
+
+    private func rawAPIKeyValue(from token: String) -> String? {
+        let trimmed = token.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return nil }
+
+        let parts = trimmed.split(separator: " ", maxSplits: 1, omittingEmptySubsequences: true)
+        if parts.count == 2, parts[0].lowercased() == "bearer" {
+            let raw = String(parts[1]).trimmingCharacters(in: .whitespacesAndNewlines)
+            return raw.isEmpty ? nil : raw
+        }
+
+        return trimmed
     }
 
     private func bodySnippet(from data: Data) -> String? {
