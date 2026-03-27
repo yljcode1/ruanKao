@@ -1,0 +1,220 @@
+[
+  {
+    "id": 1101,
+    "year": 2025,
+    "stage": "上午真题",
+    "type": "singleChoice",
+    "category": "架构设计",
+    "knowledgePoints": ["CAP", "分布式一致性"],
+    "stem": "在分布式系统设计中，若业务优先保证高可用并允许短时间内数据不一致，更适合采用哪类设计取舍？",
+    "options": [
+      { "id": "A", "label": "A", "content": "优先强一致性，牺牲可用性" },
+      { "id": "B", "label": "B", "content": "优先可用性与分区容忍性，接受最终一致性" },
+      { "id": "C", "label": "C", "content": "完全禁止分区容忍" },
+      { "id": "D", "label": "D", "content": "所有写操作都采用单机本地事务" }
+    ],
+    "correctAnswers": ["B"],
+    "analysis": "在分区可能发生的前提下，很多互联网业务会优先保证 A 和 P，通过异步补偿、幂等和重试实现最终一致性。",
+    "score": 1,
+    "estimatedMinutes": 2
+  },
+  {
+    "id": 1102,
+    "year": 2025,
+    "stage": "上午真题",
+    "type": "singleChoice",
+    "category": "数据库",
+    "knowledgePoints": ["索引", "SQL 优化"],
+    "stem": "关于数据库联合索引 `(a, b, c)` 的最左前缀原则，下列说法正确的是：",
+    "options": [
+      { "id": "A", "label": "A", "content": "查询条件只包含 `b` 和 `c` 时也能完整命中索引" },
+      { "id": "B", "label": "B", "content": "查询条件包含 `a` 和 `b` 时通常可利用联合索引" },
+      { "id": "C", "label": "C", "content": "联合索引与字段顺序无关" },
+      { "id": "D", "label": "D", "content": "联合索引只能优化排序，不能优化过滤" }
+    ],
+    "correctAnswers": ["B"],
+    "analysis": "联合索引的使用依赖最左前缀，`a`、`a+b`、`a+b+c` 常可命中，脱离最左列后效果会明显下降。",
+    "score": 1,
+    "estimatedMinutes": 2
+  },
+  {
+    "id": 1103,
+    "year": 2025,
+    "stage": "上午真题",
+    "type": "singleChoice",
+    "category": "网络",
+    "knowledgePoints": ["HTTPS", "安全"],
+    "stem": "HTTPS 在建立安全连接时，引入 TLS 的主要目的是什么？",
+    "options": [
+      { "id": "A", "label": "A", "content": "提升 DNS 解析速度" },
+      { "id": "B", "label": "B", "content": "实现传输加密、身份认证和完整性保护" },
+      { "id": "C", "label": "C", "content": "替代应用层协议" },
+      { "id": "D", "label": "D", "content": "减少所有网络跳数" }
+    ],
+    "correctAnswers": ["B"],
+    "analysis": "TLS 主要用于机密性、身份认证和报文完整性校验，不直接优化路径或替代应用层协议。",
+    "score": 1,
+    "estimatedMinutes": 2
+  },
+  {
+    "id": 1104,
+    "year": 2024,
+    "stage": "上午真题",
+    "type": "singleChoice",
+    "category": "操作系统",
+    "knowledgePoints": ["虚拟内存", "页面置换"],
+    "stem": "当系统可用物理内存不足时，操作系统通过页面置换算法管理内存页，其直接目标是：",
+    "options": [
+      { "id": "A", "label": "A", "content": "让 CPU 长时间空闲" },
+      { "id": "B", "label": "B", "content": "减少缺页中断并提高内存利用率" },
+      { "id": "C", "label": "C", "content": "完全消除磁盘 I/O" },
+      { "id": "D", "label": "D", "content": "关闭多任务调度" }
+    ],
+    "correctAnswers": ["B"],
+    "analysis": "页面置换的目标是在有限内存下维持较高命中率，降低缺页中断频率，平衡系统性能。",
+    "score": 1,
+    "estimatedMinutes": 2
+  },
+  {
+    "id": 1105,
+    "year": 2024,
+    "stage": "上午真题",
+    "type": "singleChoice",
+    "category": "软件工程",
+    "knowledgePoints": ["需求管理", "变更控制"],
+    "stem": "在大型软件项目中，控制需求蔓延最有效的管理手段通常是：",
+    "options": [
+      { "id": "A", "label": "A", "content": "允许开发人员口头确认需求变更" },
+      { "id": "B", "label": "B", "content": "建立需求基线与正式变更评审机制" },
+      { "id": "C", "label": "C", "content": "推迟所有需求分析工作" },
+      { "id": "D", "label": "D", "content": "只依靠测试人员记录问题" }
+    ],
+    "correctAnswers": ["B"],
+    "analysis": "需求基线和变更控制流程是防止范围失控的关键，可以评估成本、进度和质量影响。",
+    "score": 1,
+    "estimatedMinutes": 2
+  },
+  {
+    "id": 1106,
+    "year": 2024,
+    "stage": "上午真题",
+    "type": "singleChoice",
+    "category": "系统安全",
+    "knowledgePoints": ["身份认证", "访问控制"],
+    "stem": "零信任架构的核心思想更接近下列哪一项？",
+    "options": [
+      { "id": "A", "label": "A", "content": "内网默认可信，外网全部阻断" },
+      { "id": "B", "label": "B", "content": "任何访问都需要持续验证与最小权限控制" },
+      { "id": "C", "label": "C", "content": "只在登录时做一次身份校验" },
+      { "id": "D", "label": "D", "content": "安全完全由防火墙单点承担" }
+    ],
+    "correctAnswers": ["B"],
+    "analysis": "零信任强调“永不信任，持续验证”，结合身份、设备、环境和行为做动态授权。",
+    "score": 1,
+    "estimatedMinutes": 2
+  },
+  {
+    "id": 1107,
+    "year": 2023,
+    "stage": "上午真题",
+    "type": "singleChoice",
+    "category": "分布式",
+    "knowledgePoints": ["消息队列", "削峰填谷"],
+    "stem": "在秒杀系统中引入消息队列，最直接的价值通常是：",
+    "options": [
+      { "id": "A", "label": "A", "content": "把同步高峰流量削峰为可控异步处理流量" },
+      { "id": "B", "label": "B", "content": "让数据库不再需要事务" },
+      { "id": "C", "label": "C", "content": "完全避免重复请求" },
+      { "id": "D", "label": "D", "content": "把所有接口都改成轮询" }
+    ],
+    "correctAnswers": ["A"],
+    "analysis": "消息队列常用于削峰填谷、异步解耦和缓冲流量，但重复消费和一致性仍需额外处理。",
+    "score": 1,
+    "estimatedMinutes": 2
+  },
+  {
+    "id": 1108,
+    "year": 2023,
+    "stage": "上午真题",
+    "type": "singleChoice",
+    "category": "云原生",
+    "knowledgePoints": ["容器", "Kubernetes"],
+    "stem": "Kubernetes 中 Deployment 的主要作用是：",
+    "options": [
+      { "id": "A", "label": "A", "content": "提供持久化卷的底层块存储" },
+      { "id": "B", "label": "B", "content": "声明式管理无状态应用的副本数和滚动升级" },
+      { "id": "C", "label": "C", "content": "替代所有 Service 发现机制" },
+      { "id": "D", "label": "D", "content": "直接负责跨集群数据库同步" }
+    ],
+    "correctAnswers": ["B"],
+    "analysis": "Deployment 适合管理无状态工作负载，可实现副本维护、滚动更新和回滚。",
+    "score": 1,
+    "estimatedMinutes": 2
+  },
+  {
+    "id": 1109,
+    "year": 2023,
+    "stage": "上午真题",
+    "type": "singleChoice",
+    "category": "测试",
+    "knowledgePoints": ["自动化测试", "CI/CD"],
+    "stem": "在持续交付流程中，将自动化回归测试前移的主要价值是：",
+    "options": [
+      { "id": "A", "label": "A", "content": "尽早发现缺陷并降低修复成本" },
+      { "id": "B", "label": "B", "content": "让所有手工测试都失效" },
+      { "id": "C", "label": "C", "content": "取消代码评审环节" },
+      { "id": "D", "label": "D", "content": "保证任何版本都不需要发布审批" }
+    ],
+    "correctAnswers": ["A"],
+    "analysis": "测试左移强调尽早反馈，越早暴露问题，修复成本越低，对交付节奏也更友好。",
+    "score": 1,
+    "estimatedMinutes": 2
+  },
+  {
+    "id": 1110,
+    "year": 2022,
+    "stage": "上午真题",
+    "type": "singleChoice",
+    "category": "运维治理",
+    "knowledgePoints": ["可观测性", "监控告警"],
+    "stem": "在系统可观测性体系中，最能帮助定位单次请求链路问题的数据通常是：",
+    "options": [
+      { "id": "A", "label": "A", "content": "链路追踪 Trace" },
+      { "id": "B", "label": "B", "content": "静态配置文件" },
+      { "id": "C", "label": "C", "content": "应用安装包大小" },
+      { "id": "D", "label": "D", "content": "办公网络带宽图" }
+    ],
+    "correctAnswers": ["A"],
+    "analysis": "Trace 能串起一次请求在多个服务中的调用路径，是定位跨服务性能与错误问题的重要手段。",
+    "score": 1,
+    "estimatedMinutes": 2
+  },
+  {
+    "id": 2101,
+    "year": 2024,
+    "stage": "下午案例",
+    "type": "caseStudy",
+    "category": "系统设计",
+    "knowledgePoints": ["限流", "降级", "高可用设计"],
+    "stem": "某在线教育平台在直播高峰期频繁出现接口超时、数据库连接池打满和消息积压。请从系统架构角度分析原因，并提出有层次的优化方案。",
+    "options": [],
+    "correctAnswers": ["可从流量突增、热点资源竞争、慢 SQL、同步链路过长、消息消费能力不足等角度展开。"],
+    "analysis": "案例题可按“现象 -> 根因 -> 应用层治理 -> 数据层优化 -> 基础设施保障”组织。建议覆盖限流熔断、缓存、异步削峰、读写分离、连接池与监控告警。",
+    "score": 25,
+    "estimatedMinutes": 20
+  },
+  {
+    "id": 3101,
+    "year": 2024,
+    "stage": "论文题",
+    "type": "essay",
+    "category": "软件架构",
+    "knowledgePoints": ["架构治理", "技术演进", "组织协同"],
+    "stem": "请结合实际项目，论述在复杂业务系统中推进架构治理的目标、主要做法、难点以及取得的效果与反思。",
+    "options": [],
+    "correctAnswers": ["建议从项目背景、治理目标、规范与度量、落地机制、成效与反思五个部分展开。"],
+    "analysis": "论文题可按“背景与挑战 -> 治理框架 -> 关键实践 -> 效果数据 -> 反思优化”展开，突出制度、工具和团队协同三条主线。",
+    "score": 75,
+    "estimatedMinutes": 45
+  }
+]

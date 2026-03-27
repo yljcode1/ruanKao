@@ -1,0 +1,686 @@
+[
+  {
+    "id": 1501,
+    "year": 2025,
+    "stage": "上午真题改编",
+    "type": "singleChoice",
+    "category": "信息安全",
+    "knowledgePoints": ["OSI 安全体系", "安全服务"],
+    "stem": "OSI 安全体系中，用于验证通信实体身份的安全服务通常是：",
+    "options": [
+      { "id": "A", "label": "A", "content": "认证服务" },
+      { "id": "B", "label": "B", "content": "压缩服务" },
+      { "id": "C", "label": "C", "content": "编排服务" },
+      { "id": "D", "label": "D", "content": "缓存服务" }
+    ],
+    "correctAnswers": ["A"],
+    "analysis": "OSI 安全体系定义了认证、访问控制、机密性、完整性和抗抵赖等安全服务，认证服务用于验证实体身份。",
+    "score": 1,
+    "estimatedMinutes": 2
+  },
+  {
+    "id": 1502,
+    "year": 2025,
+    "stage": "上午真题改编",
+    "type": "singleChoice",
+    "category": "企业集成",
+    "knowledgePoints": ["API Gateway", "开放平台"],
+    "stem": "API Gateway 在开放平台中的典型作用不包括：",
+    "options": [
+      { "id": "A", "label": "A", "content": "统一认证鉴权与限流" },
+      { "id": "B", "label": "B", "content": "协议转换与路由转发" },
+      { "id": "C", "label": "C", "content": "替代所有后端业务实现" },
+      { "id": "D", "label": "D", "content": "统一监控接口调用情况" }
+    ],
+    "correctAnswers": ["C"],
+    "analysis": "API Gateway 负责接入层治理，不负责承载全部后端业务逻辑。",
+    "score": 1,
+    "estimatedMinutes": 2
+  },
+  {
+    "id": 1503,
+    "year": 2025,
+    "stage": "上午真题改编",
+    "type": "singleChoice",
+    "category": "企业集成",
+    "knowledgePoints": ["ESB", "系统集成"],
+    "stem": "企业服务总线（ESB）的典型价值之一是：",
+    "options": [
+      { "id": "A", "label": "A", "content": "统一异构系统之间的消息交换与服务集成" },
+      { "id": "B", "label": "B", "content": "取消全部接口规范" },
+      { "id": "C", "label": "C", "content": "只支持单一厂商系统" },
+      { "id": "D", "label": "D", "content": "替代数据库备份" }
+    ],
+    "correctAnswers": ["A"],
+    "analysis": "ESB 主要解决异构系统集成、消息路由、协议转换和服务编排等问题。",
+    "score": 1,
+    "estimatedMinutes": 2
+  },
+  {
+    "id": 1504,
+    "year": 2025,
+    "stage": "上午真题改编",
+    "type": "singleChoice",
+    "category": "业务流程",
+    "knowledgePoints": ["BPM", "流程管理"],
+    "stem": "BPM 在企业信息化中的主要关注点是：",
+    "options": [
+      { "id": "A", "label": "A", "content": "业务流程的建模、执行与优化" },
+      { "id": "B", "label": "B", "content": "只做数据库索引设计" },
+      { "id": "C", "label": "C", "content": "只处理终端硬件管理" },
+      { "id": "D", "label": "D", "content": "替代网络交换机" }
+    ],
+    "correctAnswers": ["A"],
+    "analysis": "BPM 关注业务流程全生命周期管理，强调流程建模、执行监控和持续优化。",
+    "score": 1,
+    "estimatedMinutes": 2
+  },
+  {
+    "id": 1505,
+    "year": 2025,
+    "stage": "上午真题改编",
+    "type": "singleChoice",
+    "category": "分布式",
+    "knowledgePoints": ["Saga", "分布式事务"],
+    "stem": "Saga 模式更适合解决哪类问题？",
+    "options": [
+      { "id": "A", "label": "A", "content": "跨服务长事务的一致性协调" },
+      { "id": "B", "label": "B", "content": "前端页面排版" },
+      { "id": "C", "label": "C", "content": "磁盘格式化" },
+      { "id": "D", "label": "D", "content": "单线程调度" }
+    ],
+    "correctAnswers": ["A"],
+    "analysis": "Saga 通过本地事务与补偿机制协同，常用于微服务场景下的分布式事务处理。",
+    "score": 1,
+    "estimatedMinutes": 2
+  },
+  {
+    "id": 1506,
+    "year": 2025,
+    "stage": "上午真题改编",
+    "type": "singleChoice",
+    "category": "架构设计",
+    "knowledgePoints": ["CQRS", "读写分离"],
+    "stem": "CQRS 模式的核心思想是：",
+    "options": [
+      { "id": "A", "label": "A", "content": "把查询模型与命令模型分离" },
+      { "id": "B", "label": "B", "content": "让所有读写都落在同一模型里" },
+      { "id": "C", "label": "C", "content": "只优化 UI 性能" },
+      { "id": "D", "label": "D", "content": "替代消息队列" }
+    ],
+    "correctAnswers": ["A"],
+    "analysis": "CQRS 通过区分读写职责，便于分别优化复杂查询和写入一致性处理。",
+    "score": 1,
+    "estimatedMinutes": 2
+  },
+  {
+    "id": 1507,
+    "year": 2025,
+    "stage": "上午真题改编",
+    "type": "singleChoice",
+    "category": "架构设计",
+    "knowledgePoints": ["Event Sourcing", "事件溯源"],
+    "stem": "事件溯源（Event Sourcing）的典型做法是：",
+    "options": [
+      { "id": "A", "label": "A", "content": "把状态变化过程以事件序列持久化" },
+      { "id": "B", "label": "B", "content": "只保存最终状态且不记录变化" },
+      { "id": "C", "label": "C", "content": "直接替代缓存系统" },
+      { "id": "D", "label": "D", "content": "禁止审计回放" }
+    ],
+    "correctAnswers": ["A"],
+    "analysis": "事件溯源通过记录事件流重建状态，便于审计、回放和时序分析，但实现复杂度更高。",
+    "score": 1,
+    "estimatedMinutes": 2
+  },
+  {
+    "id": 1508,
+    "year": 2024,
+    "stage": "上午真题改编",
+    "type": "singleChoice",
+    "category": "网络",
+    "knowledgePoints": ["CDN", "高并发"],
+    "stem": "CDN 在大型互联网系统中的主要作用之一是：",
+    "options": [
+      { "id": "A", "label": "A", "content": "就近分发静态内容并降低源站压力" },
+      { "id": "B", "label": "B", "content": "替代数据库事务" },
+      { "id": "C", "label": "C", "content": "只负责身份鉴权" },
+      { "id": "D", "label": "D", "content": "让应用完全离线运行" }
+    ],
+    "correctAnswers": ["A"],
+    "analysis": "CDN 通过边缘节点缓存内容，改善访问时延并减轻中心站点负载。",
+    "score": 1,
+    "estimatedMinutes": 2
+  },
+  {
+    "id": 1509,
+    "year": 2024,
+    "stage": "上午真题改编",
+    "type": "singleChoice",
+    "category": "分布式",
+    "knowledgePoints": ["分布式锁", "高并发"],
+    "stem": "在秒杀或库存扣减场景中使用分布式锁，主要是为了：",
+    "options": [
+      { "id": "A", "label": "A", "content": "控制并发访问，避免共享资源冲突" },
+      { "id": "B", "label": "B", "content": "提升图片压缩率" },
+      { "id": "C", "label": "C", "content": "替代缓存" },
+      { "id": "D", "label": "D", "content": "降低 DNS 延迟" }
+    ],
+    "correctAnswers": ["A"],
+    "analysis": "分布式锁常用于保护临界区，防止超卖或并发写冲突，但要注意性能和可靠性设计。",
+    "score": 1,
+    "estimatedMinutes": 2
+  },
+  {
+    "id": 1510,
+    "year": 2024,
+    "stage": "上午真题改编",
+    "type": "singleChoice",
+    "category": "数据库",
+    "knowledgePoints": ["读写分离", "高并发"],
+    "stem": "数据库读写分离架构更适合解决的问题是：",
+    "options": [
+      { "id": "A", "label": "A", "content": "读压力远大于写压力的扩展场景" },
+      { "id": "B", "label": "B", "content": "只优化单机 CPU 调度" },
+      { "id": "C", "label": "C", "content": "消除所有数据一致性问题" },
+      { "id": "D", "label": "D", "content": "替代消息中间件" }
+    ],
+    "correctAnswers": ["A"],
+    "analysis": "读写分离通过主从或多副本分担查询压力，但要处理复制延迟带来的数据一致性问题。",
+    "score": 1,
+    "estimatedMinutes": 2
+  },
+  {
+    "id": 1511,
+    "year": 2024,
+    "stage": "上午真题改编",
+    "type": "singleChoice",
+    "category": "数据库",
+    "knowledgePoints": ["反规范化", "性能优化"],
+    "stem": "在分析型场景或高频查询场景中适度反规范化的主要动机通常是：",
+    "options": [
+      { "id": "A", "label": "A", "content": "减少复杂关联，提高查询效率" },
+      { "id": "B", "label": "B", "content": "完全取消数据治理" },
+      { "id": "C", "label": "C", "content": "消灭所有冗余" },
+      { "id": "D", "label": "D", "content": "替代缓存设计" }
+    ],
+    "correctAnswers": ["A"],
+    "analysis": "反规范化是性能优化手段之一，通常用空间换时间，但需要额外控制冗余一致性。",
+    "score": 1,
+    "estimatedMinutes": 2
+  },
+  {
+    "id": 1512,
+    "year": 2024,
+    "stage": "上午真题改编",
+    "type": "singleChoice",
+    "category": "数据库",
+    "knowledgePoints": ["物化视图", "查询优化"],
+    "stem": "物化视图的典型价值是：",
+    "options": [
+      { "id": "A", "label": "A", "content": "预计算并缓存复杂查询结果" },
+      { "id": "B", "label": "B", "content": "替代所有事务日志" },
+      { "id": "C", "label": "C", "content": "只用于前端页面路由" },
+      { "id": "D", "label": "D", "content": "让数据库不再需要索引" }
+    ],
+    "correctAnswers": ["A"],
+    "analysis": "物化视图通过存储中间结果降低复杂查询开销，适合报表和聚合类场景。",
+    "score": 1,
+    "estimatedMinutes": 2
+  },
+  {
+    "id": 1513,
+    "year": 2024,
+    "stage": "上午真题改编",
+    "type": "singleChoice",
+    "category": "软件测试",
+    "knowledgePoints": ["边界值分析", "黑盒测试"],
+    "stem": "边界值分析法重点关注的是：",
+    "options": [
+      { "id": "A", "label": "A", "content": "输入区间边界附近的数据" },
+      { "id": "B", "label": "B", "content": "所有输入都取中间值" },
+      { "id": "C", "label": "C", "content": "数据库表结构颜色" },
+      { "id": "D", "label": "D", "content": "只测试正常路径" }
+    ],
+    "correctAnswers": ["A"],
+    "analysis": "边界值附近更容易暴露缺陷，因此边界值分析是高收益的黑盒测试方法。",
+    "score": 1,
+    "estimatedMinutes": 2
+  },
+  {
+    "id": 1514,
+    "year": 2024,
+    "stage": "上午真题改编",
+    "type": "singleChoice",
+    "category": "软件测试",
+    "knowledgePoints": ["判定表", "黑盒测试"],
+    "stem": "当业务规则由多个条件组合共同决定处理结果时，更适合使用：",
+    "options": [
+      { "id": "A", "label": "A", "content": "判定表法" },
+      { "id": "B", "label": "B", "content": "只有语句覆盖" },
+      { "id": "C", "label": "C", "content": "对象池模式" },
+      { "id": "D", "label": "D", "content": "只做冒烟测试" }
+    ],
+    "correctAnswers": ["A"],
+    "analysis": "判定表适合处理复杂规则组合场景，可减少遗漏并提升测试覆盖完整性。",
+    "score": 1,
+    "estimatedMinutes": 2
+  },
+  {
+    "id": 1515,
+    "year": 2023,
+    "stage": "上午真题改编",
+    "type": "singleChoice",
+    "category": "设计模式",
+    "knowledgePoints": ["策略模式", "行为型模式"],
+    "stem": "当系统需要在运行时按不同算法策略灵活切换时，更适合采用：",
+    "options": [
+      { "id": "A", "label": "A", "content": "策略模式" },
+      { "id": "B", "label": "B", "content": "单例模式" },
+      { "id": "C", "label": "C", "content": "原型模式" },
+      { "id": "D", "label": "D", "content": "享元模式" }
+    ],
+    "correctAnswers": ["A"],
+    "analysis": "策略模式把算法封装为可替换对象，适合按条件动态选择处理方式。",
+    "score": 1,
+    "estimatedMinutes": 2
+  },
+  {
+    "id": 1516,
+    "year": 2023,
+    "stage": "上午真题改编",
+    "type": "singleChoice",
+    "category": "设计模式",
+    "knowledgePoints": ["装饰器模式", "结构型模式"],
+    "stem": "若希望在不修改原对象接口的前提下动态扩展其职责，较适合采用：",
+    "options": [
+      { "id": "A", "label": "A", "content": "装饰器模式" },
+      { "id": "B", "label": "B", "content": "中介者模式" },
+      { "id": "C", "label": "C", "content": "备忘录模式" },
+      { "id": "D", "label": "D", "content": "模板方法模式" }
+    ],
+    "correctAnswers": ["A"],
+    "analysis": "装饰器模式通过包装对象在运行时叠加职责，比继承更灵活。",
+    "score": 1,
+    "estimatedMinutes": 2
+  },
+  {
+    "id": 1517,
+    "year": 2023,
+    "stage": "上午真题改编",
+    "type": "singleChoice",
+    "category": "设计模式",
+    "knowledgePoints": ["适配器模式", "结构型模式"],
+    "stem": "当现有接口与目标接口不兼容，但又希望复用已有类时，较适合采用：",
+    "options": [
+      { "id": "A", "label": "A", "content": "适配器模式" },
+      { "id": "B", "label": "B", "content": "解释器模式" },
+      { "id": "C", "label": "C", "content": "职责链模式" },
+      { "id": "D", "label": "D", "content": "状态模式" }
+    ],
+    "correctAnswers": ["A"],
+    "analysis": "适配器模式用于接口转换，帮助旧组件或第三方组件接入新系统。",
+    "score": 1,
+    "estimatedMinutes": 2
+  },
+  {
+    "id": 1518,
+    "year": 2023,
+    "stage": "上午真题改编",
+    "type": "singleChoice",
+    "category": "设计模式",
+    "knowledgePoints": ["代理模式", "结构型模式"],
+    "stem": "代理模式常用于实现下列哪类需求？",
+    "options": [
+      { "id": "A", "label": "A", "content": "访问控制、延迟加载或远程调用封装" },
+      { "id": "B", "label": "B", "content": "自动生成数据库索引" },
+      { "id": "C", "label": "C", "content": "替代消息队列" },
+      { "id": "D", "label": "D", "content": "减少磁盘碎片" }
+    ],
+    "correctAnswers": ["A"],
+    "analysis": "代理模式在访问控制、缓存代理、远程代理和虚拟代理场景中很常见。",
+    "score": 1,
+    "estimatedMinutes": 2
+  },
+  {
+    "id": 1519,
+    "year": 2023,
+    "stage": "上午真题改编",
+    "type": "singleChoice",
+    "category": "UML",
+    "knowledgePoints": ["用例图", "需求分析"],
+    "stem": "UML 用例图更适合表达：",
+    "options": [
+      { "id": "A", "label": "A", "content": "系统功能与外部参与者之间的交互关系" },
+      { "id": "B", "label": "B", "content": "数据库索引结构" },
+      { "id": "C", "label": "C", "content": "CPU 缓存行大小" },
+      { "id": "D", "label": "D", "content": "部署时机房电力拓扑" }
+    ],
+    "correctAnswers": ["A"],
+    "analysis": "用例图常用于需求分析阶段，从用户视角描述系统提供的功能服务。",
+    "score": 1,
+    "estimatedMinutes": 2
+  },
+  {
+    "id": 1520,
+    "year": 2023,
+    "stage": "上午真题改编",
+    "type": "singleChoice",
+    "category": "UML",
+    "knowledgePoints": ["时序图", "交互建模"],
+    "stem": "UML 时序图更适合刻画：",
+    "options": [
+      { "id": "A", "label": "A", "content": "对象之间消息交互的先后顺序" },
+      { "id": "B", "label": "B", "content": "机房平面布局" },
+      { "id": "C", "label": "C", "content": "数据库 ER 图" },
+      { "id": "D", "label": "D", "content": "组织架构层级" }
+    ],
+    "correctAnswers": ["A"],
+    "analysis": "时序图强调对象交互消息的时间顺序，适合说明业务流程中的协作过程。",
+    "score": 1,
+    "estimatedMinutes": 2
+  },
+  {
+    "id": 1521,
+    "year": 2023,
+    "stage": "上午真题改编",
+    "type": "singleChoice",
+    "category": "UML",
+    "knowledgePoints": ["活动图", "流程建模"],
+    "stem": "UML 活动图更适合描述：",
+    "options": [
+      { "id": "A", "label": "A", "content": "业务流程中的活动流转与分支并发" },
+      { "id": "B", "label": "B", "content": "表字段长度" },
+      { "id": "C", "label": "C", "content": "磁盘阵列级别" },
+      { "id": "D", "label": "D", "content": "前端主题配色" }
+    ],
+    "correctAnswers": ["A"],
+    "analysis": "活动图适合建模流程控制、分支判断和并发执行路径。",
+    "score": 1,
+    "estimatedMinutes": 2
+  },
+  {
+    "id": 1522,
+    "year": 2023,
+    "stage": "上午真题改编",
+    "type": "singleChoice",
+    "category": "软件架构",
+    "knowledgePoints": ["MDA", "PIM", "PSM"],
+    "stem": "在模型驱动架构中，PIM 指的是：",
+    "options": [
+      { "id": "A", "label": "A", "content": "平台无关模型" },
+      { "id": "B", "label": "B", "content": "平台相关模型" },
+      { "id": "C", "label": "C", "content": "性能指标模型" },
+      { "id": "D", "label": "D", "content": "项目迭代模型" }
+    ],
+    "correctAnswers": ["A"],
+    "analysis": "MDA 中 PIM 表示平台无关模型，强调业务抽象；PSM 则加入平台实现细节。",
+    "score": 1,
+    "estimatedMinutes": 2
+  },
+  {
+    "id": 1523,
+    "year": 2022,
+    "stage": "上午真题改编",
+    "type": "singleChoice",
+    "category": "可靠性设计",
+    "knowledgePoints": ["MTTR", "运维指标"],
+    "stem": "MTTR 通常表示：",
+    "options": [
+      { "id": "A", "label": "A", "content": "平均修复时间" },
+      { "id": "B", "label": "B", "content": "平均无故障工作时间" },
+      { "id": "C", "label": "C", "content": "平均事务提交次数" },
+      { "id": "D", "label": "D", "content": "最大吞吐量" }
+    ],
+    "correctAnswers": ["A"],
+    "analysis": "MTTR 是 Mean Time To Repair，反映故障恢复速度；MTBF 反映平均无故障间隔。",
+    "score": 1,
+    "estimatedMinutes": 2
+  },
+  {
+    "id": 1524,
+    "year": 2022,
+    "stage": "上午真题改编",
+    "type": "singleChoice",
+    "category": "可靠性设计",
+    "knowledgePoints": ["RPO", "灾备指标"],
+    "stem": "RPO 指标主要用来衡量：",
+    "options": [
+      { "id": "A", "label": "A", "content": "可接受的数据丢失时间范围" },
+      { "id": "B", "label": "B", "content": "平均页面响应时间" },
+      { "id": "C", "label": "C", "content": "CPU 主频" },
+      { "id": "D", "label": "D", "content": "用户并发数上限" }
+    ],
+    "correctAnswers": ["A"],
+    "analysis": "RPO 表示恢复点目标，关注数据回退容忍度；RTO 关注恢复服务所需时间。",
+    "score": 1,
+    "estimatedMinutes": 2
+  },
+  {
+    "id": 1525,
+    "year": 2022,
+    "stage": "上午真题改编",
+    "type": "singleChoice",
+    "category": "物联网",
+    "knowledgePoints": ["MQTT", "轻量协议"],
+    "stem": "MQTT 协议更适合下列哪类场景？",
+    "options": [
+      { "id": "A", "label": "A", "content": "资源受限设备的轻量级消息通信" },
+      { "id": "B", "label": "B", "content": "超大事务处理数据库" },
+      { "id": "C", "label": "C", "content": "GPU 训练任务调度" },
+      { "id": "D", "label": "D", "content": "源码版本控制" }
+    ],
+    "correctAnswers": ["A"],
+    "analysis": "MQTT 是轻量级发布订阅协议，广泛用于物联网设备消息上报和控制场景。",
+    "score": 1,
+    "estimatedMinutes": 2
+  },
+  {
+    "id": 1526,
+    "year": 2022,
+    "stage": "上午真题改编",
+    "type": "singleChoice",
+    "category": "物联网",
+    "knowledgePoints": ["边缘计算", "低时延"],
+    "stem": "边缘计算的典型价值之一是：",
+    "options": [
+      { "id": "A", "label": "A", "content": "在靠近数据源的位置完成部分实时处理" },
+      { "id": "B", "label": "B", "content": "把所有计算都集中到终端浏览器" },
+      { "id": "C", "label": "C", "content": "替代所有中心云能力" },
+      { "id": "D", "label": "D", "content": "消除所有网络波动" }
+    ],
+    "correctAnswers": ["A"],
+    "analysis": "边缘计算适合对时延敏感或带宽受限场景，将部分能力下沉到边缘节点。",
+    "score": 1,
+    "estimatedMinutes": 2
+  },
+  {
+    "id": 1527,
+    "year": 2022,
+    "stage": "上午真题改编",
+    "type": "singleChoice",
+    "category": "云计算",
+    "knowledgePoints": ["混合云", "架构选型"],
+    "stem": "混合云架构的典型优势是：",
+    "options": [
+      { "id": "A", "label": "A", "content": "结合私有云控制力与公有云弹性能力" },
+      { "id": "B", "label": "B", "content": "只适合单机部署" },
+      { "id": "C", "label": "C", "content": "完全不需要统一治理" },
+      { "id": "D", "label": "D", "content": "天然消除跨云网络问题" }
+    ],
+    "correctAnswers": ["A"],
+    "analysis": "混合云通常用于兼顾合规控制、现有资产利用和弹性扩展，但也提高了治理复杂度。",
+    "score": 1,
+    "estimatedMinutes": 2
+  },
+  {
+    "id": 1528,
+    "year": 2022,
+    "stage": "上午真题改编",
+    "type": "singleChoice",
+    "category": "数据治理",
+    "knowledgePoints": ["数据血缘", "数据治理"],
+    "stem": "数据血缘信息的主要价值之一是：",
+    "options": [
+      { "id": "A", "label": "A", "content": "帮助追踪数据来源、流转路径和影响范围" },
+      { "id": "B", "label": "B", "content": "替代数据库备份" },
+      { "id": "C", "label": "C", "content": "只用于 UI 配色" },
+      { "id": "D", "label": "D", "content": "取消元数据管理" }
+    ],
+    "correctAnswers": ["A"],
+    "analysis": "数据血缘是数据治理关键能力，可用于影响分析、问题追踪和合规审计。",
+    "score": 1,
+    "estimatedMinutes": 2
+  },
+  {
+    "id": 1529,
+    "year": 2021,
+    "stage": "上午真题改编",
+    "type": "singleChoice",
+    "category": "数据治理",
+    "knowledgePoints": ["元数据管理", "数据平台"],
+    "stem": "元数据管理的核心价值更接近：",
+    "options": [
+      { "id": "A", "label": "A", "content": "统一描述数据资产并支撑检索、理解和治理" },
+      { "id": "B", "label": "B", "content": "替代业务数据库" },
+      { "id": "C", "label": "C", "content": "仅压缩日志文件" },
+      { "id": "D", "label": "D", "content": "只用于权限加密" }
+    ],
+    "correctAnswers": ["A"],
+    "analysis": "元数据管理让数据资产可发现、可理解、可管理，是数据治理平台的重要组成部分。",
+    "score": 1,
+    "estimatedMinutes": 2
+  },
+  {
+    "id": 1530,
+    "year": 2021,
+    "stage": "上午真题改编",
+    "type": "singleChoice",
+    "category": "数据治理",
+    "knowledgePoints": ["数据质量", "治理指标"],
+    "stem": "下列哪项更常被视为数据质量维度？",
+    "options": [
+      { "id": "A", "label": "A", "content": "完整性" },
+      { "id": "B", "label": "B", "content": "屏幕亮度" },
+      { "id": "C", "label": "C", "content": "编译速度" },
+      { "id": "D", "label": "D", "content": "机房楼层" }
+    ],
+    "correctAnswers": ["A"],
+    "analysis": "数据质量常见维度包括完整性、准确性、一致性、及时性和唯一性等。",
+    "score": 1,
+    "estimatedMinutes": 2
+  },
+  {
+    "id": 1531,
+    "year": 2021,
+    "stage": "上午真题改编",
+    "type": "singleChoice",
+    "category": "人工智能应用",
+    "knowledgePoints": ["知识图谱", "语义建模"],
+    "stem": "知识图谱在智能问答系统中的一个典型作用是：",
+    "options": [
+      { "id": "A", "label": "A", "content": "表示实体及其关系，增强语义推理能力" },
+      { "id": "B", "label": "B", "content": "替代所有向量检索" },
+      { "id": "C", "label": "C", "content": "只负责图片渲染" },
+      { "id": "D", "label": "D", "content": "取消知识更新机制" }
+    ],
+    "correctAnswers": ["A"],
+    "analysis": "知识图谱擅长表达结构化关系知识，适合用于实体关联、路径推理和知识问答场景。",
+    "score": 1,
+    "estimatedMinutes": 2
+  },
+  {
+    "id": 1532,
+    "year": 2021,
+    "stage": "上午真题改编",
+    "type": "singleChoice",
+    "category": "人工智能应用",
+    "knowledgePoints": ["向量检索", "语义搜索"],
+    "stem": "在语义检索系统中，向量检索的主要价值是：",
+    "options": [
+      { "id": "A", "label": "A", "content": "根据语义相似度召回内容" },
+      { "id": "B", "label": "B", "content": "自动生成全部业务规则" },
+      { "id": "C", "label": "C", "content": "替代数据库日志" },
+      { "id": "D", "label": "D", "content": "只适合整数排序" }
+    ],
+    "correctAnswers": ["A"],
+    "analysis": "向量检索擅长基于语义近邻做召回，常用于 RAG、推荐和语义搜索。",
+    "score": 1,
+    "estimatedMinutes": 2
+  },
+  {
+    "id": 1533,
+    "year": 2021,
+    "stage": "上午真题改编",
+    "type": "singleChoice",
+    "category": "信息安全",
+    "knowledgePoints": ["OAuth2", "授权"],
+    "stem": "OAuth 2.0 更主要解决的是：",
+    "options": [
+      { "id": "A", "label": "A", "content": "第三方应用的授权访问问题" },
+      { "id": "B", "label": "B", "content": "磁盘阵列容错" },
+      { "id": "C", "label": "C", "content": "数据库范式设计" },
+      { "id": "D", "label": "D", "content": "CPU 调度算法" }
+    ],
+    "correctAnswers": ["A"],
+    "analysis": "OAuth2 主要面向授权，不直接等同于用户身份认证协议本身。",
+    "score": 1,
+    "estimatedMinutes": 2
+  },
+  {
+    "id": 1534,
+    "year": 2020,
+    "stage": "上午真题改编",
+    "type": "singleChoice",
+    "category": "信息安全",
+    "knowledgePoints": ["Kerberos", "单点登录"],
+    "stem": "Kerberos 协议更擅长解决下列哪类问题？",
+    "options": [
+      { "id": "A", "label": "A", "content": "可信第三方参与的网络身份认证" },
+      { "id": "B", "label": "B", "content": "数据库水平拆分" },
+      { "id": "C", "label": "C", "content": "消息顺序消费" },
+      { "id": "D", "label": "D", "content": "前端静态资源压缩" }
+    ],
+    "correctAnswers": ["A"],
+    "analysis": "Kerberos 基于票据机制和可信中心，适合做网络身份认证和单点登录场景。",
+    "score": 1,
+    "estimatedMinutes": 2
+  },
+  {
+    "id": 1535,
+    "year": 2020,
+    "stage": "上午真题改编",
+    "type": "singleChoice",
+    "category": "区块链",
+    "knowledgePoints": ["智能合约", "区块链应用"],
+    "stem": "区块链中的智能合约更接近于：",
+    "options": [
+      { "id": "A", "label": "A", "content": "部署在链上的可自动执行规则逻辑" },
+      { "id": "B", "label": "B", "content": "传统纸质合同扫描件" },
+      { "id": "C", "label": "C", "content": "关系数据库索引" },
+      { "id": "D", "label": "D", "content": "网络交换机配置" }
+    ],
+    "correctAnswers": ["A"],
+    "analysis": "智能合约是链上自动执行的规则程序，适合做可信协作与业务自动化。",
+    "score": 1,
+    "estimatedMinutes": 2
+  },
+  {
+    "id": 1536,
+    "year": 2020,
+    "stage": "上午真题改编",
+    "type": "singleChoice",
+    "category": "运维治理",
+    "knowledgePoints": ["灰度发布", "发布策略"],
+    "stem": "灰度发布的主要价值通常是：",
+    "options": [
+      { "id": "A", "label": "A", "content": "先在小流量范围验证新版本，降低整体发布风险" },
+      { "id": "B", "label": "B", "content": "让所有用户同时切到新版本" },
+      { "id": "C", "label": "C", "content": "取消监控和回滚" },
+      { "id": "D", "label": "D", "content": "替代测试环境" }
+    ],
+    "correctAnswers": ["A"],
+    "analysis": "灰度发布通过控制流量范围和人群分层，帮助在真实环境中逐步验证新版本稳定性。",
+    "score": 1,
+    "estimatedMinutes": 2
+  }
+]

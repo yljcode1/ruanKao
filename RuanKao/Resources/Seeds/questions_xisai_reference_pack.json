@@ -1,0 +1,494 @@
+[
+  {
+    "id": 1301,
+    "year": 2023,
+    "stage": "上午真题改编",
+    "type": "singleChoice",
+    "category": "软件架构",
+    "knowledgePoints": ["架构风格", "分层架构"],
+    "stem": "在典型分层架构中，表示层、业务逻辑层和数据访问层分离的主要收益是：",
+    "options": [
+      { "id": "A", "label": "A", "content": "保证系统永远没有性能瓶颈" },
+      { "id": "B", "label": "B", "content": "提升职责清晰度与可维护性" },
+      { "id": "C", "label": "C", "content": "取消接口设计工作" },
+      { "id": "D", "label": "D", "content": "避免所有跨层调用" }
+    ],
+    "correctAnswers": ["B"],
+    "analysis": "分层的核心价值在于职责分离和变化隔离，有利于维护和演进，但并不天然消除性能问题。",
+    "score": 1,
+    "estimatedMinutes": 2
+  },
+  {
+    "id": 1302,
+    "year": 2023,
+    "stage": "上午真题改编",
+    "type": "singleChoice",
+    "category": "UML",
+    "knowledgePoints": ["UML", "类图", "关系建模"],
+    "stem": "在 UML 类图中，若一个对象包含另一个对象且整体销毁时部分也随之销毁，更适合使用哪种关系表示？",
+    "options": [
+      { "id": "A", "label": "A", "content": "依赖" },
+      { "id": "B", "label": "B", "content": "关联" },
+      { "id": "C", "label": "C", "content": "聚合" },
+      { "id": "D", "label": "D", "content": "组合" }
+    ],
+    "correctAnswers": ["D"],
+    "analysis": "组合强调强拥有关系，生命周期一致；聚合则是较弱的整体-部分关系。",
+    "score": 1,
+    "estimatedMinutes": 2
+  },
+  {
+    "id": 1303,
+    "year": 2023,
+    "stage": "上午真题改编",
+    "type": "singleChoice",
+    "category": "设计模式",
+    "knowledgePoints": ["MVC", "架构模式"],
+    "stem": "在 MVC 模式中，负责协调视图和模型交互、处理用户输入的通常是：",
+    "options": [
+      { "id": "A", "label": "A", "content": "Model" },
+      { "id": "B", "label": "B", "content": "View" },
+      { "id": "C", "label": "C", "content": "Controller" },
+      { "id": "D", "label": "D", "content": "Repository" }
+    ],
+    "correctAnswers": ["C"],
+    "analysis": "Controller 负责接收输入并组织调用，Model 表示领域数据与业务规则，View 负责展示。",
+    "score": 1,
+    "estimatedMinutes": 2
+  },
+  {
+    "id": 1304,
+    "year": 2023,
+    "stage": "上午真题改编",
+    "type": "singleChoice",
+    "category": "企业应用",
+    "knowledgePoints": ["EAI", "系统集成"],
+    "stem": "企业应用集成（EAI）更关注解决下列哪类问题？",
+    "options": [
+      { "id": "A", "label": "A", "content": "单个模块内部算法优化" },
+      { "id": "B", "label": "B", "content": "异构业务系统之间的数据与流程协同" },
+      { "id": "C", "label": "C", "content": "只做 UI 皮肤统一" },
+      { "id": "D", "label": "D", "content": "仅针对移动端适配" }
+    ],
+    "correctAnswers": ["B"],
+    "analysis": "EAI 核心是解决系统之间的互联互通、数据交换和流程集成问题。",
+    "score": 1,
+    "estimatedMinutes": 2
+  },
+  {
+    "id": 1305,
+    "year": 2023,
+    "stage": "上午真题改编",
+    "type": "singleChoice",
+    "category": "数据库",
+    "knowledgePoints": ["分库分表", "水平拆分"],
+    "stem": "当单表数据量过大导致查询性能明显下降时，常见的架构优化手段是：",
+    "options": [
+      { "id": "A", "label": "A", "content": "只增加字段数量" },
+      { "id": "B", "label": "B", "content": "按业务规则实施水平分库分表" },
+      { "id": "C", "label": "C", "content": "关闭索引" },
+      { "id": "D", "label": "D", "content": "所有 SQL 改成存储过程即可" }
+    ],
+    "correctAnswers": ["B"],
+    "analysis": "水平拆分常用于突破单库单表容量和热点瓶颈，但需要权衡事务、一致性和路由复杂度。",
+    "score": 1,
+    "estimatedMinutes": 2
+  },
+  {
+    "id": 1306,
+    "year": 2022,
+    "stage": "上午真题改编",
+    "type": "singleChoice",
+    "category": "软件工程",
+    "knowledgePoints": ["输入设计", "表单设计"],
+    "stem": "在人机交互输入设计中，优先采用枚举、下拉选择等方式替代自由文本输入，主要目的是：",
+    "options": [
+      { "id": "A", "label": "A", "content": "增加用户输入时间" },
+      { "id": "B", "label": "B", "content": "减少输入错误并提高数据规范性" },
+      { "id": "C", "label": "C", "content": "避免后端校验" },
+      { "id": "D", "label": "D", "content": "替代权限管理" }
+    ],
+    "correctAnswers": ["B"],
+    "analysis": "输入设计要兼顾效率与正确性，受控输入能显著减少脏数据和格式不一致问题。",
+    "score": 1,
+    "estimatedMinutes": 2
+  },
+  {
+    "id": 1307,
+    "year": 2022,
+    "stage": "上午真题改编",
+    "type": "singleChoice",
+    "category": "架构设计",
+    "knowledgePoints": ["架构驱动因素", "需求分析"],
+    "stem": "架构设计中，性能、安全、可修改性等要求通常属于：",
+    "options": [
+      { "id": "A", "label": "A", "content": "功能需求" },
+      { "id": "B", "label": "B", "content": "非功能需求 / 质量属性需求" },
+      { "id": "C", "label": "C", "content": "界面原型" },
+      { "id": "D", "label": "D", "content": "数据字典" }
+    ],
+    "correctAnswers": ["B"],
+    "analysis": "质量属性是架构设计的重要驱动因素，直接影响技术选型和结构决策。",
+    "score": 1,
+    "estimatedMinutes": 2
+  },
+  {
+    "id": 1308,
+    "year": 2022,
+    "stage": "上午真题改编",
+    "type": "singleChoice",
+    "category": "软件架构",
+    "knowledgePoints": ["架构文档", "视图模型"],
+    "stem": "架构文档采用多视图方式描述系统，其主要原因是：",
+    "options": [
+      { "id": "A", "label": "A", "content": "不同利益相关者关注点不同" },
+      { "id": "B", "label": "B", "content": "多视图可以减少文档工作量到零" },
+      { "id": "C", "label": "C", "content": "只为满足审计留档" },
+      { "id": "D", "label": "D", "content": "多视图等同于 UML 顺序图" }
+    ],
+    "correctAnswers": ["A"],
+    "analysis": "逻辑视图、开发视图、运行视图等关注点不同，多视图可让架构表达更完整、更可沟通。",
+    "score": 1,
+    "estimatedMinutes": 2
+  },
+  {
+    "id": 1309,
+    "year": 2022,
+    "stage": "上午真题改编",
+    "type": "singleChoice",
+    "category": "数据库",
+    "knowledgePoints": ["规范化", "函数依赖"],
+    "stem": "关系数据库进行规范化设计的主要目标通常是：",
+    "options": [
+      { "id": "A", "label": "A", "content": "尽可能增加数据冗余" },
+      { "id": "B", "label": "B", "content": "降低数据冗余并减少更新异常" },
+      { "id": "C", "label": "C", "content": "替代所有业务规则" },
+      { "id": "D", "label": "D", "content": "让查询一定更快" }
+    ],
+    "correctAnswers": ["B"],
+    "analysis": "规范化重在数据一致性与结构合理性，但在性能场景下也可能配合一定反规范化。",
+    "score": 1,
+    "estimatedMinutes": 2
+  },
+  {
+    "id": 1310,
+    "year": 2022,
+    "stage": "上午真题改编",
+    "type": "singleChoice",
+    "category": "分布式",
+    "knowledgePoints": ["缓存", "缓存雪崩"],
+    "stem": "为降低缓存雪崩风险，较常见的处理方式是：",
+    "options": [
+      { "id": "A", "label": "A", "content": "让所有缓存同时过期" },
+      { "id": "B", "label": "B", "content": "给不同缓存键设置随机过期时间" },
+      { "id": "C", "label": "C", "content": "直接取消缓存层" },
+      { "id": "D", "label": "D", "content": "把数据库连接数调为 1" }
+    ],
+    "correctAnswers": ["B"],
+    "analysis": "随机过期、热点预热、多级缓存和限流降级都是应对缓存雪崩的常见手段。",
+    "score": 1,
+    "estimatedMinutes": 2
+  },
+  {
+    "id": 1311,
+    "year": 2021,
+    "stage": "上午真题改编",
+    "type": "singleChoice",
+    "category": "分布式",
+    "knowledgePoints": ["缓存穿透", "布隆过滤器"],
+    "stem": "为降低缓存穿透对后端数据库的冲击，常见的治理手段之一是：",
+    "options": [
+      { "id": "A", "label": "A", "content": "所有请求都绕过缓存" },
+      { "id": "B", "label": "B", "content": "使用布隆过滤器快速过滤明显不存在的 Key" },
+      { "id": "C", "label": "C", "content": "永久关闭数据库" },
+      { "id": "D", "label": "D", "content": "把超时时间全部设置为 0" }
+    ],
+    "correctAnswers": ["B"],
+    "analysis": "布隆过滤器适合做不存在数据的快速判断，能降低恶意或异常请求打穿缓存到数据库的概率。",
+    "score": 1,
+    "estimatedMinutes": 2
+  },
+  {
+    "id": 1312,
+    "year": 2021,
+    "stage": "上午真题改编",
+    "type": "singleChoice",
+    "category": "架构设计",
+    "knowledgePoints": ["高可用", "熔断降级"],
+    "stem": "在微服务体系中，熔断器的主要作用是：",
+    "options": [
+      { "id": "A", "label": "A", "content": "提高编译速度" },
+      { "id": "B", "label": "B", "content": "在下游异常时快速失败，避免故障扩散" },
+      { "id": "C", "label": "C", "content": "替代数据库事务" },
+      { "id": "D", "label": "D", "content": "让所有请求永久成功" }
+    ],
+    "correctAnswers": ["B"],
+    "analysis": "熔断与限流、隔离、降级一起构成服务治理的高可用策略，目标是减少级联故障。",
+    "score": 1,
+    "estimatedMinutes": 2
+  },
+  {
+    "id": 1313,
+    "year": 2021,
+    "stage": "上午真题改编",
+    "type": "singleChoice",
+    "category": "架构设计",
+    "knowledgePoints": ["幂等性", "分布式事务"],
+    "stem": "在分布式消息处理场景中强调幂等性的主要原因是：",
+    "options": [
+      { "id": "A", "label": "A", "content": "让消息一定只投递一次" },
+      { "id": "B", "label": "B", "content": "应对重复投递或重复消费带来的副作用" },
+      { "id": "C", "label": "C", "content": "消除所有网络故障" },
+      { "id": "D", "label": "D", "content": "替代权限认证" }
+    ],
+    "correctAnswers": ["B"],
+    "analysis": "在至少一次投递模型下，幂等设计可以降低重复消费导致的数据错误和业务副作用。",
+    "score": 1,
+    "estimatedMinutes": 2
+  },
+  {
+    "id": 1314,
+    "year": 2021,
+    "stage": "上午真题改编",
+    "type": "singleChoice",
+    "category": "DevOps",
+    "knowledgePoints": ["CI/CD", "发布策略"],
+    "stem": "蓝绿发布相对于直接覆盖发布的主要优势是：",
+    "options": [
+      { "id": "A", "label": "A", "content": "永远不需要回滚" },
+      { "id": "B", "label": "B", "content": "可以在新旧版本间平滑切换并降低发布风险" },
+      { "id": "C", "label": "C", "content": "无需额外环境成本" },
+      { "id": "D", "label": "D", "content": "只适合桌面软件" }
+    ],
+    "correctAnswers": ["B"],
+    "analysis": "蓝绿发布通过并行环境实现切换与回退，代价是需要额外资源和更细致的流量控制。",
+    "score": 1,
+    "estimatedMinutes": 2
+  },
+  {
+    "id": 1315,
+    "year": 2021,
+    "stage": "上午真题改编",
+    "type": "singleChoice",
+    "category": "信息安全",
+    "knowledgePoints": ["RBAC", "权限模型"],
+    "stem": "基于角色的访问控制（RBAC）模型中，用户获取权限的主要路径通常是：",
+    "options": [
+      { "id": "A", "label": "A", "content": "用户直接继承数据库表结构" },
+      { "id": "B", "label": "B", "content": "用户关联角色，角色再关联权限" },
+      { "id": "C", "label": "C", "content": "权限自动由网络地址决定" },
+      { "id": "D", "label": "D", "content": "所有用户天然拥有全部权限" }
+    ],
+    "correctAnswers": ["B"],
+    "analysis": "RBAC 通过角色做权限聚合管理，便于授权和审计，是很多业务系统的基础权限模型。",
+    "score": 1,
+    "estimatedMinutes": 2
+  },
+  {
+    "id": 1316,
+    "year": 2020,
+    "stage": "上午真题改编",
+    "type": "singleChoice",
+    "category": "项目管理",
+    "knowledgePoints": ["风险管理", "架构治理"],
+    "stem": "在架构设计阶段开展风险识别的主要价值是：",
+    "options": [
+      { "id": "A", "label": "A", "content": "项目后期不再需要监控" },
+      { "id": "B", "label": "B", "content": "提前暴露关键不确定性并准备应对措施" },
+      { "id": "C", "label": "C", "content": "替代测试与上线验证" },
+      { "id": "D", "label": "D", "content": "保证成本永不超预算" }
+    ],
+    "correctAnswers": ["B"],
+    "analysis": "架构阶段的风险识别有助于提前发现性能瓶颈、技术不成熟点和集成风险，降低后期代价。",
+    "score": 1,
+    "estimatedMinutes": 2
+  },
+  {
+    "id": 1317,
+    "year": 2020,
+    "stage": "上午真题改编",
+    "type": "singleChoice",
+    "category": "设计模式",
+    "knowledgePoints": ["工厂模式", "创建型模式"],
+    "stem": "当系统需要屏蔽具体对象创建细节并让客户端依赖抽象接口时，较适合采用：",
+    "options": [
+      { "id": "A", "label": "A", "content": "工厂模式" },
+      { "id": "B", "label": "B", "content": "观察者模式" },
+      { "id": "C", "label": "C", "content": "命令模式" },
+      { "id": "D", "label": "D", "content": "装饰器模式" }
+    ],
+    "correctAnswers": ["A"],
+    "analysis": "工厂类模式的典型价值是解耦对象创建与使用，提升扩展性和可替换性。",
+    "score": 1,
+    "estimatedMinutes": 2
+  },
+  {
+    "id": 1318,
+    "year": 2020,
+    "stage": "上午真题改编",
+    "type": "singleChoice",
+    "category": "软件设计",
+    "knowledgePoints": ["内聚", "耦合"],
+    "stem": "高内聚、低耦合设计原则主要追求的是：",
+    "options": [
+      { "id": "A", "label": "A", "content": "模块内部职责集中，模块间依赖尽量简单" },
+      { "id": "B", "label": "B", "content": "所有功能都放到一个类中" },
+      { "id": "C", "label": "C", "content": "只用全局变量共享状态" },
+      { "id": "D", "label": "D", "content": "完全消除模块通信" }
+    ],
+    "correctAnswers": ["A"],
+    "analysis": "高内聚低耦合是软件设计的经典原则，有助于理解、修改、测试和复用。",
+    "score": 1,
+    "estimatedMinutes": 2
+  },
+  {
+    "id": 1319,
+    "year": 2020,
+    "stage": "上午真题改编",
+    "type": "singleChoice",
+    "category": "软件架构",
+    "knowledgePoints": ["中间件", "解耦"],
+    "stem": "在大型系统中引入中间件的常见作用不包括：",
+    "options": [
+      { "id": "A", "label": "A", "content": "屏蔽部分底层差异并提升复用" },
+      { "id": "B", "label": "B", "content": "支持通信、缓存、消息等通用能力" },
+      { "id": "C", "label": "C", "content": "彻底消除所有系统故障" },
+      { "id": "D", "label": "D", "content": "帮助系统能力标准化" }
+    ],
+    "correctAnswers": ["C"],
+    "analysis": "中间件能增强复用和解耦，但不能保证系统绝对无故障。",
+    "score": 1,
+    "estimatedMinutes": 2
+  },
+  {
+    "id": 1320,
+    "year": 2020,
+    "stage": "上午真题改编",
+    "type": "singleChoice",
+    "category": "分布式",
+    "knowledgePoints": ["服务注册发现", "微服务"],
+    "stem": "在微服务体系中，服务注册与发现机制的主要作用是：",
+    "options": [
+      { "id": "A", "label": "A", "content": "记录前端样式文件" },
+      { "id": "B", "label": "B", "content": "让服务调用方动态感知可用实例地址" },
+      { "id": "C", "label": "C", "content": "替代业务日志系统" },
+      { "id": "D", "label": "D", "content": "关闭负载均衡能力" }
+    ],
+    "correctAnswers": ["B"],
+    "analysis": "服务注册与发现支撑实例弹性变化和故障摘除，是微服务基础设施的重要组成部分。",
+    "score": 1,
+    "estimatedMinutes": 2
+  },
+  {
+    "id": 2301,
+    "year": 2023,
+    "stage": "下午案例改编",
+    "type": "caseStudy",
+    "category": "UML 设计",
+    "knowledgePoints": ["UML", "面向对象分析设计", "建模"],
+    "stem": "某在线票务系统需要重构订单、支付、座位锁定和通知等模块。请从面向对象分析设计角度，说明如何利用 UML 类图、时序图与状态图描述该系统的关键设计。",
+    "options": [],
+    "correctAnswers": ["可从核心类识别、对象关系、关键交互时序和订单状态流转等角度展开。"],
+    "analysis": "案例题作答时建议先明确业务对象，再通过类图描述结构、时序图描述交互、状态图描述关键实体生命周期。",
+    "score": 25,
+    "estimatedMinutes": 20
+  },
+  {
+    "id": 2302,
+    "year": 2022,
+    "stage": "下午案例改编",
+    "type": "caseStudy",
+    "category": "数据库设计",
+    "knowledgePoints": ["ER 模型", "规范化", "索引设计"],
+    "stem": "某制造企业拟建设生产管理系统，涉及工单、设备、人员、工序和质检数据。请分析数据库概念设计到逻辑设计的关键步骤，并说明索引与规范化如何影响系统性能和一致性。",
+    "options": [],
+    "correctAnswers": ["可从实体识别、关系分析、主外键设计、规范化、热点字段索引和查询场景权衡等角度展开。"],
+    "analysis": "这类题目要把“建模正确性”和“性能可落地”放在一起回答，体现设计与工程实践结合。",
+    "score": 25,
+    "estimatedMinutes": 20
+  },
+  {
+    "id": 2303,
+    "year": 2021,
+    "stage": "下午案例改编",
+    "type": "caseStudy",
+    "category": "可靠性设计",
+    "knowledgePoints": ["高可用设计", "容错", "灾备"],
+    "stem": "某金融交易系统要求全年高可用、关键交易零丢失，并在主中心故障后 10 分钟内恢复。请从架构角度分析系统可靠性设计思路，并给出实现建议。",
+    "options": [],
+    "correctAnswers": ["可从冗余部署、数据复制、故障转移、双活 / 主备、消息可靠投递、监控告警与演练等方向展开。"],
+    "analysis": "答题要体现可靠性指标与架构手段的映射，例如 RTO、RPO、主备切换、事务消息和容灾演练。",
+    "score": 25,
+    "estimatedMinutes": 20
+  },
+  {
+    "id": 2304,
+    "year": 2020,
+    "stage": "下午案例改编",
+    "type": "caseStudy",
+    "category": "Web 架构",
+    "knowledgePoints": ["负载均衡", "缓存", "分层架构"],
+    "stem": "某综合门户网站访问量持续增长，现有单体部署已难以支撑高峰流量。请分析其 Web 架构改造思路，并给出从接入层到数据层的优化方案。",
+    "options": [],
+    "correctAnswers": ["可从接入层负载均衡、静态资源分离、CDN、缓存、应用拆分、数据库读写分离与监控扩容等方向回答。"],
+    "analysis": "这类题强调分层思路：流量接入、应用服务、数据服务、运维保障逐层展开会更完整。",
+    "score": 25,
+    "estimatedMinutes": 20
+  },
+  {
+    "id": 3301,
+    "year": 2023,
+    "stage": "论文题改编",
+    "type": "essay",
+    "category": "数据库设计",
+    "knowledgePoints": ["数据库设计", "规范化", "性能优化"],
+    "stem": "请结合实际项目，论述数据库设计的主要过程与方法，并说明在性能、扩展性和一致性之间如何做工程权衡。",
+    "options": [],
+    "correctAnswers": ["建议从需求分析、概念设计、逻辑设计、物理设计、性能优化、实施效果和反思等部分展开。"],
+    "analysis": "论文中最好体现建模依据、访问场景、索引策略和性能结果，避免只停留在教科书概念。",
+    "score": 75,
+    "estimatedMinutes": 45
+  },
+  {
+    "id": 3302,
+    "year": 2022,
+    "stage": "论文题改编",
+    "type": "essay",
+    "category": "企业应用集成",
+    "knowledgePoints": ["EAI", "系统集成", "服务治理"],
+    "stem": "请结合实际项目，论述企业应用集成的主要方式及应用实践，重点说明异构系统协同、数据交换与流程整合的设计要点。",
+    "options": [],
+    "correctAnswers": ["建议从项目背景、集成痛点、集成模式选择、治理机制、实施效果和经验总结等方面展开。"],
+    "analysis": "论文可突出总线、接口网关、消息驱动、数据同步和流程编排等方法的组合使用。",
+    "score": 75,
+    "estimatedMinutes": 45
+  },
+  {
+    "id": 3303,
+    "year": 2021,
+    "stage": "论文题改编",
+    "type": "essay",
+    "category": "可靠性设计",
+    "knowledgePoints": ["可靠性", "容灾", "高可用"],
+    "stem": "请结合实际项目，论述系统可靠性分析与设计的方法及应用，重点说明如何从架构层面保障高可用与故障恢复能力。",
+    "options": [],
+    "correctAnswers": ["建议从业务背景、可靠性目标、风险分析、冗余设计、容灾方案、监控演练、效果与反思展开。"],
+    "analysis": "论文写作要尽量写出可靠性指标、容错措施和故障演练结果，增强真实感。",
+    "score": 75,
+    "estimatedMinutes": 45
+  },
+  {
+    "id": 3304,
+    "year": 2020,
+    "stage": "论文题改编",
+    "type": "essay",
+    "category": "软件架构",
+    "knowledgePoints": ["层次式架构", "架构设计", "系统演进"],
+    "stem": "请结合实际项目，论述层次式架构设计及应用，说明其适用场景、核心设计要点、优势与局限以及项目中的改进实践。",
+    "options": [],
+    "correctAnswers": ["建议从项目背景、分层依据、各层职责、优势与问题、优化措施、实施效果和反思展开。"],
+    "analysis": "写层次式架构论文时，要体现分层不是目的，关键在于职责边界、依赖控制和后续演进策略。",
+    "score": 75,
+    "estimatedMinutes": 45
+  }
+]

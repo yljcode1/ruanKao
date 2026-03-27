@@ -1,0 +1,23 @@
+[
+  {
+    "year": 2025,
+    "stage": "上午真题",
+    "type": "singleChoice",
+    "category": "数据库",
+    "knowledge_points": "事务|并发控制",
+    "stem": "在高并发数据库场景中，为了降低锁冲突同时保证一致性，优先考虑的策略通常是：",
+    "options_json": "[{\"label\":\"A\",\"content\":\"所有查询都加排他锁\"},{\"label\":\"B\",\"content\":\"拆分热点数据并优化事务粒度\"},{\"label\":\"C\",\"content\":\"关闭事务\"},{\"label\":\"D\",\"content\":\"强制串行执行全部请求\"}]",
+    "correct_answers": "B",
+    "analysis": "优化事务粒度、拆分热点和减少长事务是降低锁竞争的常见手段。"
+  },
+  {
+    "year": 2025,
+    "stage": "下午案例",
+    "type": "caseStudy",
+    "category": "网络",
+    "knowledge_points": "负载均衡|高可用",
+    "stem": "某业务系统跨地域部署后出现网络延迟飙升与故障切换缓慢，请分析根因并给出优化建议。",
+    "correct_answers": "可从链路质量、流量调度、DNS 策略、容灾切换流程等角度展开。",
+    "analysis": "建议从现象、链路、调度、容灾和监控五个层面组织答案。"
+  }
+]

@@ -1,0 +1,418 @@
+[
+  {
+    "id": 1201,
+    "year": 2025,
+    "stage": "上午真题改编",
+    "type": "singleChoice",
+    "category": "云计算",
+    "knowledgePoints": ["大模型平台", "弹性伸缩", "质量属性"],
+    "stem": "在大模型训练平台架构中，若要求训练节点能根据任务动态扩缩容，最关键的架构能力是：",
+    "options": [
+      { "id": "A", "label": "A", "content": "将训练任务强依赖单机本地磁盘" },
+      { "id": "B", "label": "B", "content": "采用可编排的容器 / 集群调度与资源池化能力" },
+      { "id": "C", "label": "C", "content": "禁止任务重试" },
+      { "id": "D", "label": "D", "content": "所有节点固定静态分配显卡资源" }
+    ],
+    "correctAnswers": ["B"],
+    "analysis": "训练平台要支持弹性伸缩，通常依赖统一资源池、调度器、镜像化环境和可观测能力，而不是静态人工扩容。",
+    "score": 1,
+    "estimatedMinutes": 2
+  },
+  {
+    "id": 1202,
+    "year": 2025,
+    "stage": "上午真题改编",
+    "type": "singleChoice",
+    "category": "网络",
+    "knowledgePoints": ["RDMA", "拥塞控制", "高性能网络"],
+    "stem": "在 AI 集群高性能网络中，引入拥塞控制机制的主要目标是：",
+    "options": [
+      { "id": "A", "label": "A", "content": "完全消除物理故障" },
+      { "id": "B", "label": "B", "content": "降低网络拥塞带来的吞吐抖动和时延放大" },
+      { "id": "C", "label": "C", "content": "使所有训练任务无需调度" },
+      { "id": "D", "label": "D", "content": "把 TCP 直接替换为 HTTP" }
+    ],
+    "correctAnswers": ["B"],
+    "analysis": "高性能训练网络关注吞吐稳定性、尾时延和拥塞恢复速度，拥塞控制是关键手段之一。",
+    "score": 1,
+    "estimatedMinutes": 2
+  },
+  {
+    "id": 1203,
+    "year": 2025,
+    "stage": "上午真题改编",
+    "type": "singleChoice",
+    "category": "系统安全",
+    "knowledgePoints": ["TEE", "可信执行环境", "数据安全"],
+    "stem": "在敏感数据参与训练或推理的系统中，引入 TEE（可信执行环境）的主要价值是：",
+    "options": [
+      { "id": "A", "label": "A", "content": "提升 UI 渲染速度" },
+      { "id": "B", "label": "B", "content": "为关键代码和数据提供隔离执行与保护" },
+      { "id": "C", "label": "C", "content": "替代所有身份认证系统" },
+      { "id": "D", "label": "D", "content": "避免任何网络加密措施" }
+    ],
+    "correctAnswers": ["B"],
+    "analysis": "TEE 通过硬件隔离增强执行环境可信度，适合保护敏感密钥、模型参数和隐私数据处理逻辑。",
+    "score": 1,
+    "estimatedMinutes": 2
+  },
+  {
+    "id": 1204,
+    "year": 2025,
+    "stage": "上午真题改编",
+    "type": "singleChoice",
+    "category": "软件测试",
+    "knowledgePoints": ["测试方法", "测试策略", "质量保证"],
+    "stem": "在复杂系统研发中，同时结合单元测试、集成测试、系统测试和验收测试，体现的是哪类基本思想？",
+    "options": [
+      { "id": "A", "label": "A", "content": "分层次、分阶段验证系统质量" },
+      { "id": "B", "label": "B", "content": "只关注非功能测试" },
+      { "id": "C", "label": "C", "content": "测试只能在上线后进行" },
+      { "id": "D", "label": "D", "content": "用人工经验替代测试计划" }
+    ],
+    "correctAnswers": ["A"],
+    "analysis": "不同测试层次关注点不同，组合使用能够提高缺陷发现率，是软件质量工程的基础实践。",
+    "score": 1,
+    "estimatedMinutes": 2
+  },
+  {
+    "id": 1205,
+    "year": 2025,
+    "stage": "上午真题改编",
+    "type": "singleChoice",
+    "category": "数据架构",
+    "knowledgePoints": ["多模型数据库", "数据建模"],
+    "stem": "多模型数据库相对于单一模型数据库的典型优势是：",
+    "options": [
+      { "id": "A", "label": "A", "content": "只能处理关系数据" },
+      { "id": "B", "label": "B", "content": "可在统一平台支持多种数据模型与访问方式" },
+      { "id": "C", "label": "C", "content": "不需要任何索引设计" },
+      { "id": "D", "label": "D", "content": "天然避免数据治理问题" }
+    ],
+    "correctAnswers": ["B"],
+    "analysis": "多模型数据库常支持关系、文档、键值、图等多种模型，适合复杂业务统一管理，但仍要考虑性能与治理。",
+    "score": 1,
+    "estimatedMinutes": 2
+  },
+  {
+    "id": 1206,
+    "year": 2024,
+    "stage": "上午真题改编",
+    "type": "singleChoice",
+    "category": "软件架构",
+    "knowledgePoints": ["Lambda 架构", "流批一体"],
+    "stem": "Lambda 架构通常通过批处理层和速度层结合，其主要目标是：",
+    "options": [
+      { "id": "A", "label": "A", "content": "只保留历史离线计算结果" },
+      { "id": "B", "label": "B", "content": "兼顾海量历史数据处理与近实时查询需求" },
+      { "id": "C", "label": "C", "content": "彻底取消数据存储层" },
+      { "id": "D", "label": "D", "content": "将所有数据都保存在客户端" }
+    ],
+    "correctAnswers": ["B"],
+    "analysis": "Lambda 架构的核心是以批处理保证完整性，以速度层降低实时延迟，适合大数据场景。",
+    "score": 1,
+    "estimatedMinutes": 2
+  },
+  {
+    "id": 1207,
+    "year": 2024,
+    "stage": "上午真题改编",
+    "type": "singleChoice",
+    "category": "软件架构",
+    "knowledgePoints": ["模型驱动架构", "MDA"],
+    "stem": "模型驱动架构（MDA）的核心思想更接近下列哪一项？",
+    "options": [
+      { "id": "A", "label": "A", "content": "以模型为中心推进分析、设计与实现转换" },
+      { "id": "B", "label": "B", "content": "完全不需要代码生成" },
+      { "id": "C", "label": "C", "content": "只适用于前端界面系统" },
+      { "id": "D", "label": "D", "content": "把数据库脚本当作唯一设计产物" }
+    ],
+    "correctAnswers": ["A"],
+    "analysis": "MDA 强调从平台无关模型到平台相关模型再到实现的转换，提升抽象与复用能力。",
+    "score": 1,
+    "estimatedMinutes": 2
+  },
+  {
+    "id": 1208,
+    "year": 2024,
+    "stage": "上午真题改编",
+    "type": "singleChoice",
+    "category": "架构评估",
+    "knowledgePoints": ["效用树", "ATAM", "质量属性"],
+    "stem": "在架构评估中构建效用树（Utility Tree）的主要目的通常是：",
+    "options": [
+      { "id": "A", "label": "A", "content": "列出所有开发人员名单" },
+      { "id": "B", "label": "B", "content": "识别并排序关键质量属性场景" },
+      { "id": "C", "label": "C", "content": "自动生成数据库表结构" },
+      { "id": "D", "label": "D", "content": "替代系统监控平台" }
+    ],
+    "correctAnswers": ["B"],
+    "analysis": "效用树用于从利益相关者视角梳理重要质量属性及其优先级，是 ATAM 等方法的关键步骤。",
+    "score": 1,
+    "estimatedMinutes": 2
+  },
+  {
+    "id": 1209,
+    "year": 2024,
+    "stage": "上午真题改编",
+    "type": "singleChoice",
+    "category": "企业集成",
+    "knowledgePoints": ["SOA", "企业集成", "服务治理"],
+    "stem": "在企业集成场景中，SOA 的典型价值不包括下列哪一项？",
+    "options": [
+      { "id": "A", "label": "A", "content": "提高系统间能力复用与解耦" },
+      { "id": "B", "label": "B", "content": "通过标准接口促进异构系统协同" },
+      { "id": "C", "label": "C", "content": "保证系统不再需要治理机制" },
+      { "id": "D", "label": "D", "content": "有利于能力服务化沉淀" }
+    ],
+    "correctAnswers": ["C"],
+    "analysis": "SOA 强调服务化和解耦，但并不意味着不需要治理；相反，契约、版本、权限和监控都更重要。",
+    "score": 1,
+    "estimatedMinutes": 2
+  },
+  {
+    "id": 1210,
+    "year": 2024,
+    "stage": "上午真题改编",
+    "type": "singleChoice",
+    "category": "数据库",
+    "knowledgePoints": ["三级模式", "数据独立性"],
+    "stem": "数据库三级模式结构中，外模式与模式分离带来的主要好处是：",
+    "options": [
+      { "id": "A", "label": "A", "content": "增强数据的逻辑独立性" },
+      { "id": "B", "label": "B", "content": "取消数据库安全控制" },
+      { "id": "C", "label": "C", "content": "无需任何索引" },
+      { "id": "D", "label": "D", "content": "把所有应用强制写成同一语言" }
+    ],
+    "correctAnswers": ["A"],
+    "analysis": "三级模式通过外模式、模式和内模式的分层，提升应用与数据存储变化之间的隔离性。",
+    "score": 1,
+    "estimatedMinutes": 2
+  },
+  {
+    "id": 1211,
+    "year": 2024,
+    "stage": "上午真题改编",
+    "type": "singleChoice",
+    "category": "架构风格",
+    "knowledgePoints": ["事件驱动", "EDA", "异步架构"],
+    "stem": "事件驱动架构相对于同步调用链的一个显著优势是：",
+    "options": [
+      { "id": "A", "label": "A", "content": "天然消除数据一致性问题" },
+      { "id": "B", "label": "B", "content": "支持松耦合与异步扩展" },
+      { "id": "C", "label": "C", "content": "不再需要消息中间件" },
+      { "id": "D", "label": "D", "content": "适合所有强一致场景且没有代价" }
+    ],
+    "correctAnswers": ["B"],
+    "analysis": "EDA 能提升系统解耦和扩展性，但也会引入时序、重复消费和最终一致性等治理问题。",
+    "score": 1,
+    "estimatedMinutes": 2
+  },
+  {
+    "id": 1212,
+    "year": 2024,
+    "stage": "上午真题改编",
+    "type": "singleChoice",
+    "category": "信息安全",
+    "knowledgePoints": ["数据完整性", "摘要算法"],
+    "stem": "在安全体系中，使用摘要算法校验文件是否被篡改，主要保障的是：",
+    "options": [
+      { "id": "A", "label": "A", "content": "可用性" },
+      { "id": "B", "label": "B", "content": "完整性" },
+      { "id": "C", "label": "C", "content": "易用性" },
+      { "id": "D", "label": "D", "content": "可维护性" }
+    ],
+    "correctAnswers": ["B"],
+    "analysis": "摘要值用于校验数据是否被修改，主要服务于完整性保护，不直接等同于机密性或可用性。",
+    "score": 1,
+    "estimatedMinutes": 2
+  },
+  {
+    "id": 1213,
+    "year": 2023,
+    "stage": "上午真题改编",
+    "type": "singleChoice",
+    "category": "架构设计",
+    "knowledgePoints": ["ABSD", "需求变更", "架构方法"],
+    "stem": "在以架构为中心的软件设计方法（ABSD）中，尽早识别架构驱动因素的主要目的在于：",
+    "options": [
+      { "id": "A", "label": "A", "content": "跳过需求分析阶段" },
+      { "id": "B", "label": "B", "content": "让架构决策与关键功能和质量目标保持一致" },
+      { "id": "C", "label": "C", "content": "固定所有实现细节不再变更" },
+      { "id": "D", "label": "D", "content": "完全取消原型验证" }
+    ],
+    "correctAnswers": ["B"],
+    "analysis": "架构驱动因素通常包含关键功能、质量属性和约束条件，是架构决策的重要输入。",
+    "score": 1,
+    "estimatedMinutes": 2
+  },
+  {
+    "id": 1214,
+    "year": 2023,
+    "stage": "上午真题改编",
+    "type": "singleChoice",
+    "category": "架构评估",
+    "knowledgePoints": ["场景法", "质量属性场景"],
+    "stem": "质量属性场景通常由刺激源、刺激、环境、制品、响应和哪一项组成？",
+    "options": [
+      { "id": "A", "label": "A", "content": "风险成本" },
+      { "id": "B", "label": "B", "content": "响应度量" },
+      { "id": "C", "label": "C", "content": "编码语言" },
+      { "id": "D", "label": "D", "content": "组织架构图" }
+    ],
+    "correctAnswers": ["B"],
+    "analysis": "质量属性场景要有可衡量结果，响应度量用于判断架构是否满足目标。",
+    "score": 1,
+    "estimatedMinutes": 2
+  },
+  {
+    "id": 1215,
+    "year": 2023,
+    "stage": "上午真题改编",
+    "type": "singleChoice",
+    "category": "操作系统",
+    "knowledgePoints": ["死锁", "资源管理"],
+    "stem": "系统若同时满足互斥、占有且等待、不可剥夺和循环等待四个条件，最可能产生的问题是：",
+    "options": [
+      { "id": "A", "label": "A", "content": "分页抖动" },
+      { "id": "B", "label": "B", "content": "死锁" },
+      { "id": "C", "label": "C", "content": "缓存穿透" },
+      { "id": "D", "label": "D", "content": "活锁一定不会出现" }
+    ],
+    "correctAnswers": ["B"],
+    "analysis": "这是死锁发生的经典四个必要条件，题目常以资源分配场景形式出现。",
+    "score": 1,
+    "estimatedMinutes": 2
+  },
+  {
+    "id": 1216,
+    "year": 2023,
+    "stage": "上午真题改编",
+    "type": "singleChoice",
+    "category": "信息安全",
+    "knowledgePoints": ["安全审计", "合规"],
+    "stem": "安全审计日志设计中，最不合理的做法是：",
+    "options": [
+      { "id": "A", "label": "A", "content": "记录关键操作的时间、主体和结果" },
+      { "id": "B", "label": "B", "content": "确保日志具备防篡改能力" },
+      { "id": "C", "label": "C", "content": "只在事故发生后临时开启日志" },
+      { "id": "D", "label": "D", "content": "建立日志留存与检索策略" }
+    ],
+    "correctAnswers": ["C"],
+    "analysis": "安全审计强调事前留痕与持续记录，不能等到出事再临时开启。",
+    "score": 1,
+    "estimatedMinutes": 2
+  },
+  {
+    "id": 2201,
+    "year": 2025,
+    "stage": "下午案例改编",
+    "type": "caseStudy",
+    "category": "大模型平台",
+    "knowledgePoints": ["训练平台", "质量属性", "弹性伸缩", "高可用"],
+    "stem": "某企业建设大模型训练平台，要求支持 RDMA 高速传输、节点弹性伸缩、故障恢复时间不超过 5 分钟，并保障敏感数据安全。请从质量属性角度分析该平台重点关注哪些非功能需求，并给出相应的架构设计建议。",
+    "options": [],
+    "correctAnswers": ["可从性能、可扩展性、可用性、安全性、可维护性等角度展开，建议覆盖资源调度、网络优化、容灾切换、隔离与审计等。"],
+    "analysis": "答题建议：先列质量属性，再将每个属性映射到具体架构策略，如资源池化、调度编排、故障转移、监控告警、TEE / 加密与权限控制。",
+    "score": 25,
+    "estimatedMinutes": 20
+  },
+  {
+    "id": 2202,
+    "year": 2024,
+    "stage": "下午案例改编",
+    "type": "caseStudy",
+    "category": "架构评估",
+    "knowledgePoints": ["效用树", "ATAM", "质量属性场景"],
+    "stem": "某政务平台准备进行架构评估。系统涉及高并发访问、跨部门集成和严格安全审计要求。请说明如何使用效用树识别关键质量属性场景，并分析这些场景如何支持后续架构评估工作。",
+    "options": [],
+    "correctAnswers": ["可从利益相关者识别、质量属性归类、场景描述、重要性与难度排序、风险点提取等角度展开。"],
+    "analysis": "案例题重点不是背概念，而是把效用树与评估流程串起来：识别关键场景、排序、定位风险、指导权衡分析。",
+    "score": 25,
+    "estimatedMinutes": 20
+  },
+  {
+    "id": 2203,
+    "year": 2024,
+    "stage": "下午案例改编",
+    "type": "caseStudy",
+    "category": "企业集成",
+    "knowledgePoints": ["SOA", "服务治理", "异构集成"],
+    "stem": "某集团企业需要整合 ERP、CRM、供应链和财务等多个异构系统。项目组拟采用面向服务的架构设计。请分析该架构的适用性、关键设计要点及落地风险。",
+    "options": [],
+    "correctAnswers": ["可从服务识别、契约设计、服务编排、治理机制、版本兼容、性能瓶颈和安全控制等角度展开。"],
+    "analysis": "答题可按“为何适合 -> 怎么设计 -> 有哪些风险与治理方式”三段组织，体现服务化与治理并重。",
+    "score": 25,
+    "estimatedMinutes": 20
+  },
+  {
+    "id": 2204,
+    "year": 2023,
+    "stage": "下午案例改编",
+    "type": "caseStudy",
+    "category": "数据架构",
+    "knowledgePoints": ["Lambda 架构", "实时计算", "数据平台"],
+    "stem": "某互联网平台需要同时支持历史海量数据分析和秒级运营看板展示。项目团队考虑采用 Lambda 架构。请分析该架构的组成、优点和可能的实施复杂度，并提出改进建议。",
+    "options": [],
+    "correctAnswers": ["可从批处理层、速度层、服务层组成出发，分析实时性与复杂度之间的权衡，并补充流批一体等改进方向。"],
+    "analysis": "案例题要体现“架构选择是权衡”的思路：Lambda 能解决实时性问题，但会增加双链路维护成本。",
+    "score": 25,
+    "estimatedMinutes": 20
+  },
+  {
+    "id": 3201,
+    "year": 2025,
+    "stage": "论文题改编",
+    "type": "essay",
+    "category": "软件测试",
+    "knowledgePoints": ["测试方法", "质量保证", "工程实践"],
+    "stem": "请结合实际项目，论述软件测试方法在复杂信息系统中的应用与实践。要求说明项目背景、测试策略选择、实施过程、取得效果以及问题反思。",
+    "options": [],
+    "correctAnswers": ["建议从项目背景、质量目标、测试分层策略、自动化建设、缺陷治理、效果数据与反思七个方面展开。"],
+    "analysis": "论文题适合写有工程细节的项目：覆盖率、缺陷发现率、回归时长压缩比例、质量门禁等数据都可以增强说服力。",
+    "score": 75,
+    "estimatedMinutes": 45
+  },
+  {
+    "id": 3202,
+    "year": 2025,
+    "stage": "论文题改编",
+    "type": "essay",
+    "category": "国产化架构",
+    "knowledgePoints": ["自主可控", "架构设计", "技术选型"],
+    "stem": "请结合实际项目，论述自主可控技术在信息系统架构设计中的应用与实践，重点说明技术选型、架构调整、实施难点和最终效果。",
+    "options": [],
+    "correctAnswers": ["建议从业务背景、国产化约束、技术栈替换、兼容性处理、风险应对、成效与反思等部分展开。"],
+    "analysis": "这类论文要突出“为什么要做、怎么平滑替换、怎么控制风险、结果如何量化”，避免只写概念。",
+    "score": 75,
+    "estimatedMinutes": 45
+  },
+  {
+    "id": 3203,
+    "year": 2024,
+    "stage": "论文题改编",
+    "type": "essay",
+    "category": "数据架构",
+    "knowledgePoints": ["Lambda 架构", "大数据", "实时分析"],
+    "stem": "请结合实际项目，论述 Lambda 架构在海量数据处理系统中的应用与实践，说明架构设计、实施过程、优势、问题与改进方案。",
+    "options": [],
+    "correctAnswers": ["建议采用“项目背景 -> 数据处理挑战 -> 架构设计 -> 关键实现 -> 效果 -> 反思优化”结构。"],
+    "analysis": "论文中最好给出数据规模、实时性要求、计算链路和指标改善结果，体现工程真实性。",
+    "score": 75,
+    "estimatedMinutes": 45
+  },
+  {
+    "id": 3204,
+    "year": 2024,
+    "stage": "论文题改编",
+    "type": "essay",
+    "category": "企业架构",
+    "knowledgePoints": ["SOA", "服务治理", "系统集成"],
+    "stem": "请结合实际项目，论述面向服务的架构设计及应用，重点说明服务拆分、契约治理、集成方式和实施效果。",
+    "options": [],
+    "correctAnswers": ["建议从项目背景、集成痛点、服务化设计、治理机制、实施成效和经验教训等部分展开。"],
+    "analysis": "论文写作时要突出服务拆分依据、治理规则和业务收益，避免泛泛而谈。",
+    "score": 75,
+    "estimatedMinutes": 45
+  }
+]

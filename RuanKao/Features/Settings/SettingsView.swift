@@ -1,0 +1,356 @@
+import SwiftUI
+
+struct SettingsView: View {
+    @AppStorage("appearance_mode") private var appearanceModeRaw = AppearanceMode.system.rawValue
+    @Environment(\.dismiss) private var dismiss
+    @State private var aiEndpoint: String
+    @State private var aiToken: String
+    @State private var aiMessage: String?
+
+    init() {
+        _aiEndpoint = State(initialValue: AppConfiguration.aiServiceEndpointString)
+        _aiToken = State(initialValue: AppConfiguration.aiServiceToken ?? "")
+    }
+
+    private var appearanceMode: AppearanceMode {
+        get { AppearanceMode(rawValue: appearanceModeRaw) ?? .system }
+        set { appearanceModeRaw = newValue.rawValue }
+    }
+
+    private var remoteAIEnabled: Bool {
+        let trimmed = aiEndpoint.trimmingCharacters(in: .whitespacesAndNewlines)
+        return URL(string: trimmed) != nil && !trimmed.isEmpty
+    }
+
+    private var roadmapItems: [(title: String, subtitle: String, icon: String)] {
+        [
+            ("字体大小", "按阅读习惯切换紧凑或舒展排版", "textformat.size"),
+            ("每日目标", "设置当天练题量和完成提醒", "target"),
+            ("iCloud 同步", "跨设备同步收藏、错题和进度", "icloud")
+        ]
+    }
+
+    var body: some View {
+        NavigationStack {
+            ScrollView(showsIndicators: false) {
+                VStack(alignment: .leading, spacing: 24) {
+                    headerCard
+                    appearanceCard
+                    aiCard
+                    roadmapCard
+                }
+                .padding(20)
+            }
+            .background(AppTheme.Colors.background.ignoresSafeArea())
+            .navigationTitle("设置")
+            .appScreenChrome()
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button("完成") {
+                        dismiss()
+                    }
+                }
+            }
+        }
+    }
+
+    private var headerCard: some View {
+        PrimaryCard(style: .subtle) {
+            VStack(alignment: .leading, spacing: 16) {
+                HStack(alignment: .top, spacing: 14) {
+                    Image(systemName: "slider.horizontal.3")
+                        .font(.title3.weight(.semibold))
+                        .foregroundStyle(AppTheme.Colors.primary)
+                        .frame(width: 44, height: 44)
+                        .background(AppTheme.Colors.muted)
+                        .clipShape(RoundedRectangle(cornerRadius: AppTheme.Metrics.compactRadius, style: .continuous))
+
+                    VStack(alignment: .leading, spacing: 6) {
+                        Text("偏好设置")
+                            .font(.title3.weight(.bold))
+                            .foregroundStyle(AppTheme.Colors.textPrimary)
+
+                        Text("只保留主题和 AI 两项关键设置，减少分心。")
+                            .font(.subheadline)
+                            .foregroundStyle(AppTheme.Colors.textSecondary)
+                    }
+
+                    Spacer(minLength: 12)
+
+                    PillTag(title: appearanceMode.title, icon: appearanceMode.icon, tint: AppTheme.Colors.secondary)
+                }
+
+                Text("一个页面只做一件事：先把使用体验调顺手，再回去专注刷题。")
+                    .font(.footnote)
+                    .foregroundStyle(AppTheme.Colors.textSecondary)
+            }
+        }
+    }
+
+    private var appearanceCard: some View {
+        PrimaryCard {
+            VStack(alignment: .leading, spacing: 14) {
+                SectionHeader("显示模式", subtitle: "支持跟随系统、浅色和深色") {
+                    PillTag(title: "当前 \(appearanceMode.title)", tint: AppTheme.Colors.secondary)
+                }
+
+                ForEach(AppearanceMode.allCases) { mode in
+                    AppearanceOptionRow(
+                        mode: mode,
+                        description: description(for: mode),
+                        isSelected: appearanceMode == mode
+                    ) {
+                        appearanceModeRaw = mode.rawValue
+                    }
+                }
+            }
+        }
+    }
+
+    private var roadmapCard: some View {
+        PrimaryCard(style: .subtle) {
+            VStack(alignment: .leading, spacing: 14) {
+                SectionHeader("预留项", subtitle: "后续优先补这 3 个能力")
+
+                ForEach(roadmapItems, id: \.title) { item in
+                    SettingsInfoRow(
+                        title: item.title,
+                        subtitle: item.subtitle,
+                        icon: item.icon
+                    )
+                }
+            }
+        }
+    }
+
+    private var aiCard: some View {
+        PrimaryCard {
+            VStack(alignment: .leading, spacing: 14) {
+                SectionHeader("AI 助手", subtitle: "题库、错题和统计始终离线可用；这里只给 AI 助手联网") {
+                    PillTag(
+                        title: remoteAIEnabled ? "已联网" : "离线",
+                        icon: remoteAIEnabled ? "network" : "wifi.slash",
+                        tint: AppTheme.Colors.secondary
+                    )
+                }
+
+                HStack(spacing: 12) {
+                    Image(systemName: remoteAIEnabled ? "network" : "wifi.slash")
+                        .font(.headline)
+                        .foregroundStyle(AppTheme.Colors.primary)
+                        .frame(width: 34, height: 34)
+                        .background(AppTheme.Colors.muted)
+                        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(remoteAIEnabled ? "远程 AI 已启用" : "当前离线模式")
+                            .font(.headline)
+                            .foregroundStyle(AppTheme.Colors.textPrimary)
+                        Text(remoteAIEnabled ? "下一次点击 AI 讲解会直接走远程接口" : "未配置接口时，会自动回退到本地 AI 模拟解析")
+                            .font(.footnote)
+                            .foregroundStyle(AppTheme.Colors.textSecondary)
+                    }
+
+                    Spacer()
+                }
+                .padding(14)
+                .background(AppTheme.Colors.card)
+                .overlay {
+                    RoundedRectangle(cornerRadius: AppTheme.Metrics.controlRadius, style: .continuous)
+                        .stroke(AppTheme.Colors.stroke)
+                }
+                .clipShape(RoundedRectangle(cornerRadius: AppTheme.Metrics.controlRadius, style: .continuous))
+
+                settingsField(
+                    title: "接口地址",
+                    placeholder: "https://your-domain.com/api/ai-study",
+                    text: $aiEndpoint
+                )
+
+                settingsField(
+                    title: "访问令牌（可选）",
+                    placeholder: "Bearer Token 或 API Key",
+                    text: $aiToken,
+                    secure: true
+                )
+
+                VStack(alignment: .leading, spacing: 6) {
+                    Text("当前令牌：\(AppConfiguration.maskedTokenDescription(for: AppConfiguration.aiServiceToken))")
+                        .font(.footnote)
+                        .foregroundStyle(AppTheme.Colors.textSecondary)
+                    Text("远程接口需支持 HTTPS `POST`，请求体包含 `style` 和 `question`，返回 `title / summary / highlights / nextAction / source`。")
+                        .font(.footnote)
+                        .foregroundStyle(AppTheme.Colors.textSecondary)
+                }
+
+                if let aiMessage {
+                    Text(aiMessage)
+                        .font(.footnote.weight(.medium))
+                        .foregroundStyle(remoteAIEnabled ? AppTheme.Colors.primary : AppTheme.Colors.textSecondary)
+                }
+
+                HStack(spacing: 12) {
+                    Button("保存配置") {
+                        saveAISettings()
+                    }
+                    .appButton()
+                    .frame(maxWidth: .infinity)
+
+                    Button("恢复离线") {
+                        resetAISettings()
+                    }
+                    .appButton(.secondary)
+                    .frame(maxWidth: .infinity)
+                }
+            }
+        }
+    }
+
+    private func description(for mode: AppearanceMode) -> String {
+        switch mode {
+        case .system:
+            return "自动适配系统主题"
+        case .light:
+            return "固定使用浅色界面"
+        case .dark:
+            return "固定使用深色界面"
+        }
+    }
+
+    @ViewBuilder
+    private func settingsField(
+        title: String,
+        placeholder: String,
+        text: Binding<String>,
+        secure: Bool = false
+    ) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text(title)
+                .font(.footnote.weight(.semibold))
+                .foregroundStyle(AppTheme.Colors.textSecondary)
+
+            Group {
+                if secure {
+                    SecureField(placeholder, text: text)
+                        .textInputAutocapitalization(.never)
+                        .autocorrectionDisabled()
+                } else {
+                    TextField(placeholder, text: text)
+                        .keyboardType(.URL)
+                        .textInputAutocapitalization(.never)
+                        .autocorrectionDisabled()
+                }
+            }
+            .font(.subheadline)
+            .padding(.horizontal, 14)
+            .padding(.vertical, 12)
+            .background(AppTheme.Colors.card)
+            .overlay {
+                RoundedRectangle(cornerRadius: AppTheme.Metrics.controlRadius, style: .continuous)
+                    .stroke(AppTheme.Colors.stroke)
+            }
+            .clipShape(RoundedRectangle(cornerRadius: AppTheme.Metrics.controlRadius, style: .continuous))
+        }
+    }
+
+    private func saveAISettings() {
+        do {
+            try AppConfiguration.saveAIService(endpoint: aiEndpoint, token: aiToken)
+            aiEndpoint = AppConfiguration.aiServiceEndpointString
+            aiToken = AppConfiguration.aiServiceToken ?? ""
+            aiMessage = remoteAIEnabled ? "已保存，下次点击 AI 助手就会联网。" : "已保存为空配置，当前继续使用离线模式。"
+        } catch {
+            aiMessage = error.localizedDescription
+        }
+    }
+
+    private func resetAISettings() {
+        do {
+            try AppConfiguration.resetAIServiceOverrides()
+            aiEndpoint = AppConfiguration.aiServiceEndpointString
+            aiToken = AppConfiguration.aiServiceToken ?? ""
+            aiMessage = AppConfiguration.isRemoteAIEnabled ? "已恢复到内置远程配置。" : "已切回离线模式。"
+        } catch {
+            aiMessage = error.localizedDescription
+        }
+    }
+}
+
+private struct AppearanceOptionRow: View {
+    let mode: AppearanceMode
+    let description: String
+    let isSelected: Bool
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: 12) {
+                Image(systemName: mode.icon)
+                    .font(.headline)
+                    .foregroundStyle(AppTheme.Colors.primary)
+                    .frame(width: 34, height: 34)
+                    .background(isSelected ? AppTheme.Colors.primary.opacity(0.06) : AppTheme.Colors.muted)
+                    .clipShape(RoundedRectangle(cornerRadius: AppTheme.Metrics.compactRadius, style: .continuous))
+
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(mode.title)
+                        .font(.headline)
+                        .foregroundStyle(AppTheme.Colors.textPrimary)
+                    Text(description)
+                        .font(.footnote)
+                        .foregroundStyle(AppTheme.Colors.textSecondary)
+                }
+
+                Spacer()
+
+                Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
+                    .foregroundStyle(isSelected ? AppTheme.Colors.primary : AppTheme.Colors.textTertiary)
+            }
+            .padding(14)
+            .background(isSelected ? AppTheme.Colors.primary.opacity(0.04) : AppTheme.Colors.card)
+            .overlay {
+                RoundedRectangle(cornerRadius: AppTheme.Metrics.controlRadius, style: .continuous)
+                    .stroke(isSelected ? AppTheme.Colors.primary.opacity(0.18) : AppTheme.Colors.stroke)
+            }
+            .clipShape(RoundedRectangle(cornerRadius: AppTheme.Metrics.controlRadius, style: .continuous))
+            .animation(.easeInOut(duration: 0.18), value: isSelected)
+        }
+        .buttonStyle(.plain)
+    }
+}
+
+private struct SettingsInfoRow: View {
+    let title: String
+    let subtitle: String
+    let icon: String
+
+    var body: some View {
+        HStack(spacing: 12) {
+            Image(systemName: icon)
+                .font(.headline)
+                .foregroundStyle(AppTheme.Colors.primary)
+                .frame(width: 34, height: 34)
+                .background(AppTheme.Colors.muted)
+                .clipShape(RoundedRectangle(cornerRadius: AppTheme.Metrics.compactRadius, style: .continuous))
+
+            VStack(alignment: .leading, spacing: 4) {
+                Text(title)
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(AppTheme.Colors.textPrimary)
+
+                Text(subtitle)
+                    .font(.footnote)
+                    .foregroundStyle(AppTheme.Colors.textSecondary)
+            }
+
+            Spacer()
+        }
+        .padding(14)
+        .background(AppTheme.Colors.card)
+        .overlay {
+            RoundedRectangle(cornerRadius: AppTheme.Metrics.controlRadius, style: .continuous)
+                .stroke(AppTheme.Colors.stroke)
+        }
+        .clipShape(RoundedRectangle(cornerRadius: AppTheme.Metrics.controlRadius, style: .continuous))
+    }
+}
