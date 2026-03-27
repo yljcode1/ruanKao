@@ -197,6 +197,9 @@ struct SettingsView: View {
                     Text("如果你的中转站走 `chat/completions`，建议填完整接口如 `/v1/chat/completions`；如果走 `responses`，可直接填根地址、`/v1` 或完整 `/v1/responses`。")
                         .font(.footnote)
                         .foregroundStyle(AppTheme.Colors.textSecondary)
+                    Text("点 `测试连接` 时，如果当前模型失败，系统会自动轮询一组常见兼容模型，并把成功的模型回填到输入框。")
+                        .font(.footnote)
+                        .foregroundStyle(AppTheme.Colors.textSecondary)
                 }
 
                 if let aiMessage {
@@ -306,24 +309,60 @@ struct SettingsView: View {
         let model = aiModel.trimmingCharacters(in: .whitespacesAndNewlines)
 
         isAITesting = true
-        aiMessage = nil
+        aiMessage = "正在测试 AI 连接…"
 
         Task {
-            let service = RemoteAIStudyService(
-                configurationProvider: {
-                    RemoteAIServiceConfiguration(
-                        endpoint: URL(string: endpoint),
-                        bearerToken: token.isEmpty ? nil : token,
-                        model: model.isEmpty ? nil : model
+            do {
+                let modelsToTry = candidateModelsForConnectionTest(
+                    endpoint: endpoint,
+                    preferredModel: model.isEmpty ? nil : model
+                )
+
+                var attempts: [String] = []
+                var resolvedSource: String?
+                var resolvedModel: String?
+
+                for candidateModel in modelsToTry {
+                    let candidateLabel = candidateModel ?? "默认模型"
+                    await MainActor.run {
+                        self.aiMessage = "正在测试模型：\(candidateLabel)…"
+                    }
+
+                    do {
+                        let source = try await runAIConnectionTest(
+                            endpoint: endpoint,
+                            token: token,
+                            model: candidateModel
+                        )
+                        resolvedSource = source
+                        resolvedModel = candidateModel
+                        break
+                    } catch {
+                        attempts.append("\(candidateLabel)：\(error.localizedDescription)")
+                    }
+                }
+
+                guard let source = resolvedSource else {
+                    let details = attempts.prefix(3).joined(separator: "\n")
+                    throw NSError(
+                        domain: "AIConnectionProbe",
+                        code: -1,
+                        userInfo: [
+                            NSLocalizedDescriptionKey: details.isEmpty
+                                ? "未找到可用模型。"
+                                : "未找到可用模型。\n\(details)"
+                        ]
                     )
                 }
-            )
 
-            do {
-                let source = try await service.testConnection()
                 await MainActor.run {
                     self.isAITesting = false
-                    self.aiMessage = "测试成功：已连接到 \(source)。如果没问题，再点“保存配置”。"
+                    if let resolvedModel {
+                        self.aiModel = resolvedModel
+                        self.aiMessage = "测试成功：已连接到 \(source)。可用模型是 \(resolvedModel)，如果没问题，再点“保存配置”。"
+                    } else {
+                        self.aiMessage = "测试成功：已连接到 \(source)。如果没问题，再点“保存配置”。"
+                    }
                 }
             } catch {
                 await MainActor.run {
@@ -332,6 +371,84 @@ struct SettingsView: View {
                 }
             }
         }
+    }
+
+    private func runAIConnectionTest(
+        endpoint: String,
+        token: String,
+        model: String?
+    ) async throws -> String {
+        let service = RemoteAIStudyService(
+            configurationProvider: {
+                RemoteAIServiceConfiguration(
+                    endpoint: URL(string: endpoint),
+                    bearerToken: token.isEmpty ? nil : token,
+                    model: model
+                )
+            }
+        )
+        return try await service.testConnection()
+    }
+
+    private func candidateModelsForConnectionTest(endpoint: String, preferredModel: String?) -> [String?] {
+        var candidates: [String?] = [preferredModel]
+
+        guard shouldProbeAlternativeModels(endpoint: endpoint) else {
+            return deduplicatedModels(candidates)
+        }
+
+        candidates.append(contentsOf: [
+            "gpt-4.1-mini",
+            "gpt-4.1",
+            "gpt-4o-mini",
+            "gpt-4o",
+            "gpt-5",
+            "gpt-5.4",
+            "o4-mini"
+        ])
+
+        return deduplicatedModels(candidates)
+    }
+
+    private func shouldProbeAlternativeModels(endpoint: String) -> Bool {
+        guard let url = URL(string: endpoint) else { return false }
+        let host = url.host()?.lowercased() ?? ""
+        let path = url.path.lowercased()
+
+        if host.contains("openai.com") || host.contains("deepseek.com") {
+            return false
+        }
+
+        if path.contains("/chat/completions") {
+            return false
+        }
+
+        return true
+    }
+
+    private func deduplicatedModels(_ models: [String?]) -> [String?] {
+        var seen = Set<String>()
+        var result: [String?] = []
+
+        for model in models {
+            let normalized = model?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+
+            if normalized.isEmpty {
+                if !seen.contains("__EMPTY__") {
+                    seen.insert("__EMPTY__")
+                    result.append(nil)
+                }
+                continue
+            }
+
+            let key = normalized.lowercased()
+            if !seen.contains(key) {
+                seen.insert(key)
+                result.append(normalized)
+            }
+        }
+
+        return result
     }
 
     private func resetAISettings() {
