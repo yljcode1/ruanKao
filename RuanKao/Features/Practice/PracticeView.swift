@@ -59,6 +59,9 @@ struct PracticeView: View {
         .task {
             viewModel.loadInitialData()
         }
+        .onChange(of: viewModel.searchText) { _, _ in
+            viewModel.handleSearchTextChanged()
+        }
         .onDisappear {
             viewModel.stopExamIfNeeded()
         }
@@ -117,6 +120,10 @@ struct PracticeView: View {
                             .stroke(AppTheme.Colors.stroke)
                     }
                     .clipShape(RoundedRectangle(cornerRadius: AppTheme.Metrics.compactRadius, style: .continuous))
+
+                    if !viewModel.searchSuggestions.isEmpty {
+                        searchSuggestionSection
+                    }
 
                     if !recentActivityStore.recentSearches.isEmpty {
                         recentSearchSection
@@ -685,7 +692,7 @@ struct PracticeView: View {
                     ForEach(recentActivityStore.recentSearches, id: \.self) { keyword in
                         Button {
                             viewModel.searchText = keyword
-                            viewModel.applySearch()
+                            viewModel.selectSearchSuggestion(keyword)
                         } label: {
                             PillTag(
                                 title: keyword,
@@ -698,6 +705,59 @@ struct PracticeView: View {
                     }
                 }
                 .padding(.vertical, 1)
+            }
+        }
+    }
+
+    private var searchSuggestionSection: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack {
+                Text("搜索联想")
+                    .font(.footnote.weight(.semibold))
+                    .foregroundStyle(AppTheme.Colors.textSecondary)
+
+                Spacer()
+
+                Button("收起") {
+                    viewModel.dismissSearchSuggestions()
+                }
+                .font(.footnote.weight(.semibold))
+                .foregroundStyle(AppTheme.Colors.textSecondary)
+                .buttonStyle(.plain)
+            }
+
+            VStack(spacing: 8) {
+                ForEach(viewModel.searchSuggestions, id: \.self) { suggestion in
+                    Button {
+                        viewModel.selectSearchSuggestion(suggestion)
+                    } label: {
+                        HStack(spacing: 10) {
+                            Image(systemName: "magnifyingglass")
+                                .foregroundStyle(AppTheme.Colors.textSecondary)
+
+                            Text(suggestion)
+                                .font(.subheadline.weight(.medium))
+                                .foregroundStyle(AppTheme.Colors.textPrimary)
+                                .multilineTextAlignment(.leading)
+
+                            Spacer(minLength: 0)
+
+                            Image(systemName: "arrow.up.left")
+                                .font(.footnote.weight(.semibold))
+                                .foregroundStyle(AppTheme.Colors.textTertiary)
+                        }
+                        .padding(.horizontal, 14)
+                        .padding(.vertical, 12)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .background(AppTheme.Colors.background)
+                        .overlay {
+                            RoundedRectangle(cornerRadius: AppTheme.Metrics.compactRadius, style: .continuous)
+                                .stroke(AppTheme.Colors.stroke)
+                        }
+                        .clipShape(RoundedRectangle(cornerRadius: AppTheme.Metrics.compactRadius, style: .continuous))
+                    }
+                    .buttonStyle(.plain)
+                }
             }
         }
     }

@@ -52,6 +52,11 @@ struct RootTabView: View {
                 startupView
             }
         }
+        .task {
+            if !container.isPrepared {
+                container.prepareIfNeeded()
+            }
+        }
         .onChange(of: scenePhase) { _, newPhase in
             focusSessionStore.handleScenePhase(newPhase)
         }
@@ -103,7 +108,7 @@ struct RootTabView: View {
             .tag(Tab.analytics)
         }
         .tint(AppTheme.Colors.primary)
-        .toolbarBackground(Color.white, for: .tabBar)
+        .toolbarBackground(AppTheme.Colors.background, for: .tabBar)
         .toolbarBackground(.visible, for: .tabBar)
     }
 

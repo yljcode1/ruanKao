@@ -216,54 +216,112 @@ struct DashboardView: View {
             SectionHeader("最近练习", subtitle: "把上一次的筛选条件和模式一键接上")
 
             ForEach(Array(recentActivityStore.recentSessions.prefix(4))) { entry in
-                NavigationLink {
-                    PracticeView(
-                        container: container,
-                        preferredMode: entry.mode,
-                        initialCategory: entry.category,
-                        initialYear: entry.year,
-                        initialSearchText: entry.keyword
-                    )
-                } label: {
-                    PrimaryCard(style: .subtle) {
-                        HStack(alignment: .top, spacing: 14) {
-                            Image(systemName: entry.mode.icon)
-                                .font(.title3.weight(.semibold))
-                                .foregroundStyle(AppTheme.Colors.primary)
-                                .frame(width: 42, height: 42)
-                                .background(AppTheme.Colors.muted)
-                                .clipShape(RoundedRectangle(cornerRadius: AppTheme.Metrics.compactRadius, style: .continuous))
+                PrimaryCard(style: .subtle) {
+                    VStack(alignment: .leading, spacing: 12) {
+                        NavigationLink {
+                            PracticeView(
+                                container: container,
+                                preferredMode: entry.mode,
+                                initialCategory: entry.category,
+                                initialYear: entry.year,
+                                initialSearchText: entry.keyword
+                            )
+                        } label: {
+                            HStack(alignment: .top, spacing: 14) {
+                                Image(systemName: entry.mode.icon)
+                                    .font(.title3.weight(.semibold))
+                                    .foregroundStyle(AppTheme.Colors.primary)
+                                    .frame(width: 42, height: 42)
+                                    .background(AppTheme.Colors.muted)
+                                    .clipShape(RoundedRectangle(cornerRadius: AppTheme.Metrics.compactRadius, style: .continuous))
 
-                            VStack(alignment: .leading, spacing: 8) {
-                                HStack {
-                                    Text(entry.title)
-                                        .font(.headline.weight(.semibold))
-                                        .foregroundStyle(AppTheme.Colors.textPrimary)
+                                VStack(alignment: .leading, spacing: 8) {
+                                    HStack(spacing: 8) {
+                                        Text(entry.title)
+                                            .font(.headline.weight(.semibold))
+                                            .foregroundStyle(AppTheme.Colors.textPrimary)
 
-                                    Spacer(minLength: 12)
+                                        if entry.isPinned {
+                                            Image(systemName: "pin.fill")
+                                                .font(.caption.weight(.semibold))
+                                                .foregroundStyle(AppTheme.Colors.primary)
+                                        }
 
-                                    Text(entry.updatedAt, style: .relative)
-                                        .font(.caption.weight(.semibold))
+                                        Spacer(minLength: 12)
+
+                                        Text(entry.updatedAt, style: .relative)
+                                            .font(.caption.weight(.semibold))
+                                            .foregroundStyle(AppTheme.Colors.textSecondary)
+                                    }
+
+                                    Text(entry.subtitle)
+                                        .font(.footnote)
                                         .foregroundStyle(AppTheme.Colors.textSecondary)
+                                        .fixedSize(horizontal: false, vertical: true)
                                 }
 
-                                Text(entry.subtitle)
-                                    .font(.footnote)
-                                    .foregroundStyle(AppTheme.Colors.textSecondary)
-                                    .fixedSize(horizontal: false, vertical: true)
+                                Image(systemName: "chevron.right")
+                                    .font(.footnote.weight(.semibold))
+                                    .foregroundStyle(AppTheme.Colors.textTertiary)
+                            }
+                        }
+                        .buttonStyle(.plain)
 
-                                PillTag(title: "继续练", icon: "arrow.clockwise", tint: AppTheme.Colors.secondary)
+                        HStack(spacing: 10) {
+                            PillTag(
+                                title: entry.isPinned ? "已置顶" : "继续练",
+                                icon: entry.isPinned ? "pin.fill" : "arrow.clockwise",
+                                tint: entry.isPinned ? AppTheme.Colors.primary : AppTheme.Colors.secondary,
+                                filled: entry.isPinned
+                            )
+
+                            Spacer(minLength: 0)
+
+                            recentPracticeActionButton(
+                                title: entry.isPinned ? "取消置顶" : "置顶",
+                                icon: entry.isPinned ? "pin.slash" : "pin",
+                                tint: entry.isPinned ? AppTheme.Colors.textSecondary : AppTheme.Colors.primary
+                            ) {
+                                recentActivityStore.togglePin(entryID: entry.id)
                             }
 
-                            Image(systemName: "chevron.right")
-                                .font(.footnote.weight(.semibold))
-                                .foregroundStyle(AppTheme.Colors.textTertiary)
+                            recentPracticeActionButton(
+                                title: "删除",
+                                icon: "trash",
+                                tint: AppTheme.Colors.danger
+                            ) {
+                                recentActivityStore.removePractice(entryID: entry.id)
+                            }
                         }
                     }
                 }
-                .buttonStyle(.plain)
             }
         }
+    }
+
+    private func recentPracticeActionButton(
+        title: String,
+        icon: String,
+        tint: Color,
+        action: @escaping () -> Void
+    ) -> some View {
+        Button(action: action) {
+            HStack(spacing: 6) {
+                Image(systemName: icon)
+                Text(title)
+            }
+            .font(.caption.weight(.semibold))
+            .foregroundStyle(tint)
+            .padding(.horizontal, 12)
+            .padding(.vertical, 8)
+            .background(AppTheme.Colors.background)
+            .overlay {
+                Capsule()
+                    .stroke(AppTheme.Colors.stroke)
+            }
+            .clipShape(Capsule())
+        }
+        .buttonStyle(.plain)
     }
 
     private var openClawSection: some View {

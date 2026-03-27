@@ -25,6 +25,7 @@ final class PracticeViewModel: ObservableObject {
     @Published private(set) var isAILoading = false
     @Published var aiErrorMessage: String?
     @Published var errorMessage: String?
+    @Published private(set) var searchSuggestions: [String] = []
 
     private let questionRepository: QuestionRepositoryProtocol
     private let progressRepository: ProgressRepositoryProtocol
@@ -33,6 +34,9 @@ final class PracticeViewModel: ObservableObject {
     private let recordRecentPractice: (PracticeMode, String?, Int?, String?) -> Void
     private var questionStartDate = Date()
     private var examTimer: Timer?
+    private var suggestionTask: Task<Void, Never>?
+    private var searchSuggestionCache: [String: [String]] = [:]
+    private let searchSuggestionLimit = 6
 
     init(
         questionRepository: QuestionRepositoryProtocol,
@@ -59,6 +63,7 @@ final class PracticeViewModel: ObservableObject {
 
     deinit {
         examTimer?.invalidate()
+        suggestionTask?.cancel()
     }
 
     var currentQuestion: Question? {
@@ -161,6 +166,7 @@ final class PracticeViewModel: ObservableObject {
     }
 
     func applySearch() {
+        dismissSearchSuggestions()
         recordRecentSearch(normalizedSearchText)
         loadQuestions()
     }
@@ -175,7 +181,52 @@ final class PracticeViewModel: ObservableObject {
         selectedCategory = nil
         selectedYear = nil
         searchText = ""
+        dismissSearchSuggestions()
         loadQuestions()
+    }
+
+    func handleSearchTextChanged() {
+        suggestionTask?.cancel()
+
+        guard let keyword = normalizedSearchText else {
+            searchSuggestions = []
+            return
+        }
+
+        let cacheKey = keyword.lowercased()
+        if let cachedSuggestions = searchSuggestionCache[cacheKey] {
+            searchSuggestions = cachedSuggestions
+            return
+        }
+
+        suggestionTask = Task { [weak self] in
+            guard let self else { return }
+
+            try? await Task.sleep(nanoseconds: 180_000_000)
+            guard !Task.isCancelled else { return }
+
+            let repository = self.questionRepository
+            let suggestionLimit = self.searchSuggestionLimit
+            let suggestions = (try? await Task.detached(priority: .userInitiated) {
+                try repository.fetchSearchSuggestions(keyword: keyword, limit: suggestionLimit)
+            }.value) ?? []
+
+            guard !Task.isCancelled else { return }
+            guard self.normalizedSearchText?.caseInsensitiveCompare(keyword) == .orderedSame else { return }
+
+            self.searchSuggestionCache[cacheKey] = suggestions
+            self.searchSuggestions = suggestions
+        }
+    }
+
+    func selectSearchSuggestion(_ suggestion: String) {
+        searchText = suggestion
+        applySearch()
+    }
+
+    func dismissSearchSuggestions() {
+        suggestionTask?.cancel()
+        searchSuggestions = []
     }
 
     func toggleFavoriteForCurrentQuestion() {

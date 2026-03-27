@@ -1,10 +1,17 @@
 import Foundation
+import SQLite3
 
 enum QuestionSeedLoader {
     struct SeedBundle {
         let manifest: String
         let questions: [Question]
     }
+
+    private static let seedsSubdirectory = "Seeds"
+    private static let bundledManifestResource = "question_seed_manifest"
+    private static let bundledManifestExtension = "txt"
+    private static let bundledDatabaseResource = "ruankao_seed"
+    private static let bundledDatabaseExtension = "sqlite"
 
     static func load() -> [Question] {
         loadSeedBundle().questions
@@ -22,6 +29,34 @@ enum QuestionSeedLoader {
         bundledManifest() ?? fallbackManifest
     }
 
+    static func installBundledDatabaseIfNeeded(databaseName: String) throws {
+        guard let bundledDatabaseURL = bundledDatabaseSnapshotURL() else {
+            return
+        }
+
+        let fileManager = FileManager.default
+        let destinationURL = try SQLiteDatabase.databaseURL(databaseName: databaseName, fileManager: fileManager)
+
+        guard !fileManager.fileExists(atPath: destinationURL.path) else {
+            return
+        }
+
+        let temporaryURL = destinationURL
+            .deletingLastPathComponent()
+            .appendingPathComponent("\(destinationURL.lastPathComponent).tmp")
+
+        if fileManager.fileExists(atPath: temporaryURL.path) {
+            try fileManager.removeItem(at: temporaryURL)
+        }
+
+        try fileManager.copyItem(at: bundledDatabaseURL, to: temporaryURL)
+        try fileManager.moveItem(at: temporaryURL, to: destinationURL)
+    }
+
+    static func bundledDatabaseSnapshotURL() -> URL? {
+        bundledDatabaseURL()
+    }
+
     private static func loadBundledSeedBundle() -> SeedBundle? {
         guard let manifest = bundledManifest() else {
             return nil
@@ -36,11 +71,21 @@ enum QuestionSeedLoader {
     }
 
     private static func bundledManifest() -> String? {
-        guard let resourceURL = Bundle.main.resourceURL else {
-            return nil
+        if let manifestURL = bundledResourceURL(
+            forResource: bundledManifestResource,
+            withExtension: bundledManifestExtension
+        ),
+           let manifest = try? String(contentsOf: manifestURL, encoding: .utf8)
+            .trimmingCharacters(in: .whitespacesAndNewlines),
+           !manifest.isEmpty {
+            return manifest
         }
 
-        let urls = seedURLs(at: resourceURL)
+        if let databaseManifest = bundledDatabaseManifest() {
+            return databaseManifest
+        }
+
+        let urls = seedURLs()
         guard !urls.isEmpty else {
             return nil
         }
@@ -56,12 +101,8 @@ enum QuestionSeedLoader {
     }
 
     private static func loadBundledSeedQuestions() -> [Question] {
-        guard let resourceURL = Bundle.main.resourceURL else {
-            return []
-        }
-
         let decoder = JSONDecoder()
-        let urls = seedURLs(at: resourceURL)
+        let urls = seedURLs()
 
         var questionsByID: [Int64: Question] = [:]
 
@@ -85,23 +126,79 @@ enum QuestionSeedLoader {
         }
     }
 
-    private static func seedURLs(at resourceURL: URL) -> [URL] {
-        let fileManager = FileManager.default
-        guard let enumerator = fileManager.enumerator(
-            at: resourceURL,
-            includingPropertiesForKeys: [.isRegularFileKey, .fileSizeKey, .contentModificationDateKey],
-            options: [.skipsHiddenFiles]
-        ) else {
-            return []
-        }
+    private static func seedURLs() -> [URL] {
+        let candidateURLs =
+            (Bundle.main.urls(forResourcesWithExtension: "json", subdirectory: seedsSubdirectory) ?? [])
+            + (Bundle.main.urls(forResourcesWithExtension: "json", subdirectory: nil) ?? [])
 
-        return enumerator
-            .compactMap { $0 as? URL }
+        return Array(Set(candidateURLs))
             .filter {
                 $0.pathExtension.lowercased() == "json"
                     && $0.lastPathComponent.lowercased().contains("question")
             }
             .sorted { $0.lastPathComponent < $1.lastPathComponent }
+    }
+
+    private static func bundledDatabaseURL() -> URL? {
+        bundledResourceURL(
+            forResource: bundledDatabaseResource,
+            withExtension: bundledDatabaseExtension
+        )
+    }
+
+    private static func bundledResourceURL(forResource name: String, withExtension ext: String) -> URL? {
+        if let nestedURL = Bundle.main.url(
+            forResource: name,
+            withExtension: ext,
+            subdirectory: seedsSubdirectory
+        ) {
+            return nestedURL
+        }
+
+        return Bundle.main.url(forResource: name, withExtension: ext)
+    }
+
+    private static func bundledDatabaseManifest() -> String? {
+        guard let databaseURL = bundledDatabaseURL() else {
+            return nil
+        }
+
+        var database: OpaquePointer?
+        guard sqlite3_open_v2(databaseURL.path, &database, SQLITE_OPEN_READONLY, nil) == SQLITE_OK,
+              let database
+        else {
+            if let database {
+                sqlite3_close(database)
+            }
+            return nil
+        }
+        defer { sqlite3_close(database) }
+
+        var statement: OpaquePointer?
+        guard sqlite3_prepare_v2(
+            database,
+            "SELECT value FROM app_metadata WHERE key = 'question_seed_manifest' LIMIT 1;",
+            -1,
+            &statement,
+            nil
+        ) == SQLITE_OK,
+        let statement
+        else {
+            if let statement {
+                sqlite3_finalize(statement)
+            }
+            return nil
+        }
+        defer { sqlite3_finalize(statement) }
+
+        guard sqlite3_step(statement) == SQLITE_ROW,
+              let rawValue = sqlite3_column_text(statement, 0)
+        else {
+            return nil
+        }
+
+        let manifest = String(cString: rawValue).trimmingCharacters(in: .whitespacesAndNewlines)
+        return manifest.isEmpty ? nil : manifest
     }
 
     private static let fallbackManifest = "fallback_questions_v1"

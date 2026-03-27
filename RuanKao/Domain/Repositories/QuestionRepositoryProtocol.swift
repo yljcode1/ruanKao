@@ -1,8 +1,10 @@
 import Foundation
 
 protocol QuestionRepositoryProtocol: Sendable {
+    func hasQuestionBank() throws -> Bool
     func seedIfNeeded() throws
     func loadPracticeQuestions(mode: PracticeMode, limit: Int, category: String?, year: Int?, keyword: String?) throws -> [Question]
+    func fetchSearchSuggestions(keyword: String, limit: Int) throws -> [String]
     func fetchCategories() throws -> [String]
     func fetchTopicSummaries(limit: Int?) throws -> [TopicSummary]
     func fetchAvailableYears() throws -> [Int]
