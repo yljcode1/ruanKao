@@ -80,11 +80,54 @@ final class RemoteAIStudyService: AIStudyServiceProtocol {
             let effort: String
         }
 
+        struct TextConfiguration: Encodable {
+            struct Format: Encodable {
+                let type: String
+                let name: String
+                let schema: InsightSchema
+                let strict: Bool
+            }
+
+            let format: Format
+        }
+
         let model: String
         let instructions: String
         let input: String
         let store: Bool
         let reasoning: Reasoning?
+        let text: TextConfiguration
+    }
+
+    private struct InsightSchema: Encodable {
+        let type = "object"
+        let properties = Properties()
+        let required = ["title", "summary", "highlights", "nextAction", "source"]
+        let additionalProperties = false
+
+        struct Properties: Encodable {
+            let title = StringProperty(description: "20 字以内的中文标题")
+            let summary = StringProperty(description: "120 字以内的中文总结")
+            let highlights = ArrayProperty()
+            let nextAction = StringProperty(description: "1 句可执行建议")
+            let source = StringProperty(description: "当前模型或服务名称")
+        }
+
+        struct StringProperty: Encodable {
+            let type = "string"
+            let description: String
+        }
+
+        struct ArrayProperty: Encodable {
+            let type = "array"
+            let items = Item()
+            let minItems = 3
+            let maxItems = 3
+
+            struct Item: Encodable {
+                let type = "string"
+            }
+        }
     }
 
     private let configurationProvider: () -> RemoteAIServiceConfiguration
@@ -180,6 +223,7 @@ final class RemoteAIStudyService: AIStudyServiceProtocol {
         var request = URLRequest(url: endpoint)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.setValue("application/json", forHTTPHeaderField: "Accept")
         if let token = sanitized(token) {
             request.setValue(authorizationHeaderValue(for: token), forHTTPHeaderField: "Authorization")
         }
@@ -217,6 +261,7 @@ final class RemoteAIStudyService: AIStudyServiceProtocol {
         var request = URLRequest(url: resolvedEndpoint)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.setValue("application/json", forHTTPHeaderField: "Accept")
         if let token = sanitized(token) {
             request.setValue(authorizationHeaderValue(for: token), forHTTPHeaderField: "Authorization")
         }
@@ -226,21 +271,26 @@ final class RemoteAIStudyService: AIStudyServiceProtocol {
             instructions: systemPrompt,
             input: userPrompt(for: question, style: style),
             store: false,
-            reasoning: defaultResponsesReasoning(for: resolvedModel).map(ResponsesAPIRequest.Reasoning.init)
+            reasoning: defaultResponsesReasoning(for: resolvedModel).map(ResponsesAPIRequest.Reasoning.init),
+            text: ResponsesAPIRequest.TextConfiguration(
+                format: .init(
+                    type: "json_schema",
+                    name: "ai_study_insight",
+                    schema: InsightSchema(),
+                    strict: true
+                )
+            )
         )
         request.httpBody = try JSONEncoder().encode(requestBody)
 
         let (data, response) = try await performRequest(request)
         try validateHTTPResponse(response, data: data)
 
-        if let directResponse = try? JSONDecoder().decode(ResponseBody.self, from: data) {
-            return AIStudyInsight(
-                title: directResponse.title,
-                summary: directResponse.summary,
-                highlights: directResponse.highlights,
-                nextAction: directResponse.nextAction,
-                source: directResponse.source ?? sourceLabel(for: endpoint, model: resolvedModel)
-            )
+        if let insight = try decodeInsightIfPresent(
+            in: data,
+            fallbackSource: sourceLabel(for: endpoint, model: resolvedModel)
+        ) {
+            return insight
         }
 
         guard let content = extractedResponsesText(from: data) else {
@@ -266,6 +316,7 @@ final class RemoteAIStudyService: AIStudyServiceProtocol {
         var request = URLRequest(url: resolvedEndpoint)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.setValue("application/json", forHTTPHeaderField: "Accept")
         if let token = sanitized(token) {
             request.setValue(authorizationHeaderValue(for: token), forHTTPHeaderField: "Authorization")
         }
@@ -336,6 +387,34 @@ final class RemoteAIStudyService: AIStudyServiceProtocol {
             nextAction: decoded.nextAction,
             source: decoded.source ?? fallbackSource
         )
+    }
+
+    private func decodeInsightIfPresent(in data: Data, fallbackSource: String) throws -> AIStudyInsight? {
+        if let decoded = try? JSONDecoder().decode(ResponseBody.self, from: data) {
+            return AIStudyInsight(
+                title: decoded.title,
+                summary: decoded.summary,
+                highlights: decoded.highlights,
+                nextAction: decoded.nextAction,
+                source: decoded.source ?? fallbackSource
+            )
+        }
+
+        guard let jsonObject = try? JSONSerialization.jsonObject(with: data) else {
+            return nil
+        }
+
+        if let responseBody = responseBodyFromJSONObject(jsonObject) {
+            return AIStudyInsight(
+                title: responseBody.title,
+                summary: responseBody.summary,
+                highlights: responseBody.highlights,
+                nextAction: responseBody.nextAction,
+                source: responseBody.source ?? fallbackSource
+            )
+        }
+
+        return nil
     }
 
     private var systemPrompt: String {
@@ -504,52 +583,102 @@ final class RemoteAIStudyService: AIStudyServiceProtocol {
     }
 
     private func extractedResponsesText(from data: Data) -> String? {
-        guard let jsonObject = try? JSONSerialization.jsonObject(with: data),
-              let object = jsonObject as? [String: Any]
-        else {
+        guard let jsonObject = try? JSONSerialization.jsonObject(with: data) else {
             return nil
         }
+        return extractedText(from: jsonObject)
+    }
 
-        if let directText = sanitized(object["output_text"] as? String) {
-            return directText
+    private func responseBodyFromJSONObject(_ jsonObject: Any) -> ResponseBody? {
+        if let dictionary = jsonObject as? [String: Any],
+           let title = sanitized(dictionary["title"] as? String),
+           let summary = sanitized(dictionary["summary"] as? String),
+           let highlights = dictionary["highlights"] as? [String],
+           highlights.count == 3,
+           let nextAction = sanitized(dictionary["nextAction"] as? String) {
+            return ResponseBody(
+                title: title,
+                summary: summary,
+                highlights: highlights,
+                nextAction: nextAction,
+                source: sanitized(dictionary["source"] as? String)
+            )
         }
 
-        if let output = object["output"] as? [[String: Any]] {
-            let texts = output.compactMap { outputItem in
-                if let content = outputItem["content"] as? [[String: Any]] {
-                    let segments = content.compactMap { contentItem -> String? in
-                        if let text = sanitized(contentItem["text"] as? String) {
-                            return text
-                        }
-                        if let value = sanitized(contentItem["content"] as? String) {
-                            return value
-                        }
-                        return nil
-                    }
+        if let dictionary = jsonObject as? [String: Any] {
+            for key in ["response", "data", "result", "message"] {
+                if let nestedValue = dictionary[key],
+                   let responseBody = responseBodyFromJSONObject(nestedValue) {
+                    return responseBody
+                }
+            }
 
-                    if !segments.isEmpty {
-                        return segments.joined(separator: "\n")
+            for value in dictionary.values {
+                if let responseBody = responseBodyFromJSONObject(value) {
+                    return responseBody
+                }
+            }
+        }
+
+        if let array = jsonObject as? [Any] {
+            for value in array {
+                if let responseBody = responseBodyFromJSONObject(value) {
+                    return responseBody
+                }
+            }
+        }
+
+        return nil
+    }
+
+    private func extractedText(from jsonObject: Any) -> String? {
+        if let text = sanitized(jsonObject as? String) {
+            return text
+        }
+
+        if let dictionary = jsonObject as? [String: Any] {
+            if let directText = sanitized(dictionary["output_text"] as? String) {
+                return directText
+            }
+
+            if let type = sanitized(dictionary["type"] as? String),
+               type == "output_text",
+               let text = sanitized(dictionary["text"] as? String) {
+                return text
+            }
+
+            if let text = sanitized(dictionary["text"] as? String),
+               dictionary["type"] == nil || sanitized(dictionary["type"] as? String) == "text" {
+                return text
+            }
+
+            if let choices = dictionary["choices"] as? [[String: Any]] {
+                for choice in choices {
+                    if let message = choice["message"] as? [String: Any],
+                       let content = extractedText(from: message) {
+                        return content
                     }
                 }
+            }
 
-                if let text = sanitized(outputItem["text"] as? String) {
+            for key in ["response", "data", "result", "output", "message", "content"] {
+                if let nestedValue = dictionary[key],
+                   let text = extractedText(from: nestedValue) {
                     return text
                 }
-
-                return nil
             }
 
-            if !texts.isEmpty {
-                return texts.joined(separator: "\n")
+            for value in dictionary.values {
+                if let text = extractedText(from: value) {
+                    return text
+                }
             }
         }
 
-        if let choices = object["choices"] as? [[String: Any]] {
-            for choice in choices {
-                if let message = choice["message"] as? [String: Any],
-                   let content = sanitized(message["content"] as? String) {
-                    return content
-                }
+        if let array = jsonObject as? [Any] {
+            let texts = array.compactMap { extractedText(from: $0) }
+            if !texts.isEmpty {
+                return texts.joined(separator: "\n")
             }
         }
 
